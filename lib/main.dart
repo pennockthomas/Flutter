@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ---------------- ECOSTEPS STARTUP WITH SOUND ----------------
+// ---------------- ECOSTEPS STARTUP WITH SOUND -----------------
 
 class StartupScreen extends StatefulWidget {
   const StartupScreen({super.key});
