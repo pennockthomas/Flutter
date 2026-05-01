@@ -1,0 +1,82 @@
+[
+  {
+    "id": "Start",
+    "description": "Welcome to your sustainable journey! Small steps lead to big changes.",
+    "unlocks": ["Kitchen", "Bathroom", "On-The-Go"]
+  },
+  {
+    "id": "Kitchen",
+    "description": "The heart of the home. Let's tackle single-use plastics here first.",
+    "unlocks": ["Food Storage", "Dish Washing", "Bulk Buying"]
+  },
+  {
+    "id": "Bathroom",
+    "description": "Personal care doesn't need to be personal waste.",
+    "unlocks": ["Solid Soaps", "Dental Care", "Sustainable Shaving"]
+  },
+  {
+    "id": "On-The-Go",
+    "description": "Prevent waste before it happens while you are out and about.",
+    "unlocks": ["Zero-Waste Kit", "Sustainable Fashion"]
+  },
+  {
+    "id": "Food Storage",
+    "description": "Replace cling wrap with beeswax wraps and glass containers.",
+    "unlocks": []
+  },
+  {
+    "id": "Dish Washing",
+    "description": "Swap plastic sponges for compostable loofahs or wooden brushes.",
+    "unlocks": []
+  },
+  {
+    "id": "Bulk Buying",
+    "description": "Shop at zero-waste stores using your own cloth bags and jars.",
+    "unlocks": ["Pantry Goals"]
+  },
+  {
+    "id": "Pantry Goals",
+    "description": "A beautiful, plastic-free pantry organized in glass.",
+    "unlocks": []
+  },
+  {
+    "id": "Solid Soaps",
+    "description": "Switch to shampoo, conditioner, and body bars to remove plastic bottles.",
+    "unlocks": []
+  },
+  {
+    "id": "Dental Care",
+    "description": "Bamboo toothbrushes and toothpaste tablets to save the oceans.",
+    "unlocks": []
+  },
+  {
+    "id": "Sustainable Shaving",
+    "description": "Invest in a safety razor—the last razor you'll ever need to buy.",
+    "unlocks": []
+  },
+  {
+    "id": "Zero-Waste Kit",
+    "description": "Pack a reusable water bottle, coffee cup, and cutlery set.",
+    "unlocks": ["Takeout Pro"]
+  },
+  {
+    "id": "Takeout Pro",
+    "description": "Bring your own containers when ordering food to go.",
+    "unlocks": []
+  },
+  {
+    "id": "Sustainable Fashion",
+    "description": "Mend your clothes and shop secondhand to reduce microplastic runoff.",
+    "unlocks": ["Community Impact"]
+  },
+  {
+    "id": "Community Impact",
+    "description": "You've mastered home! Now lead a local cleanup or advocate for policy change.",
+    "unlocks": ["Eco-Warrior"]
+  },
+  {
+    "id": "Eco-Warrior",
+    "description": "You are a sustainable legend. Continue inspiring those around you!",
+    "unlocks": []
+  }
+]
