@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_repository.dart';
 
@@ -68,6 +69,24 @@ class _StartScreenState extends State<StartScreen>
   final double expandedSize = 220.0;
   final math.Random _random = math.Random();
 
+  bool _isChallengeChecklistComplete(String label) {
+    final checklist = challengeData[label]?.checklist ?? const [];
+    return checklist.isNotEmpty && checklist.every((item) => item.isCompleted);
+  }
+
+  Future<void> _saveChallengeData() async {
+    await _challengeRepository.saveChallenges(challengeData.values);
+  }
+
+  void _syncNodeCompletionFromChecklist(String label) {
+    final idx = nodes.indexWhere((node) => node.label == label);
+    if (idx == -1) return;
+    nodes[idx].status =
+        nodes[idx].hasSpawnedChildren || _isChallengeChecklistComplete(label)
+        ? NodeStatus.completed
+        : NodeStatus.available;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -124,6 +143,9 @@ class _StartScreenState extends State<StartScreen>
       for (String label in savedUnlocked) {
         int idx = nodes.indexWhere((n) => n.label == label);
         if (idx != -1) _spawnNextTier(idx, isRestoring: true);
+      }
+      for (final label in challengeData.keys) {
+        _syncNodeCompletionFromChecklist(label);
       }
     } catch (e) {
       setState(() => isLoading = false);
@@ -213,12 +235,62 @@ class _StartScreenState extends State<StartScreen>
                   Offset(_random.nextDouble() * 40, _random.nextDouble() * 40),
               label: title,
               rootCategory: childCategory,
+              status: _isChallengeChecklistComplete(title)
+                  ? NodeStatus.completed
+                  : NodeStatus.available,
             ),
           );
           connections.add([parentIdx, nodes.length - 1]);
         }
       }
     });
+  }
+
+  Future<void> _toggleChecklistItem({
+    required String label,
+    required int itemIndex,
+    required bool isCompleted,
+  }) async {
+    final challenge = challengeData[label];
+    if (challenge == null) return;
+    if (itemIndex < 0 || itemIndex >= challenge.checklist.length) return;
+
+    final updatedChecklist = [...challenge.checklist];
+    updatedChecklist[itemIndex] = updatedChecklist[itemIndex].copyWith(
+      isCompleted: isCompleted,
+    );
+
+    setState(() {
+      challengeData = {
+        ...challengeData,
+        label: challenge.copyWith(checklist: updatedChecklist),
+      };
+      _syncNodeCompletionFromChecklist(label);
+    });
+    await _saveChallengeData();
+  }
+
+  Future<void> _openChecklistScreen(String label) async {
+    final challenge = challengeData[label];
+    if (challenge == null) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return ChecklistScreen(
+            challenge: challenge,
+            onToggleItem: (itemIndex, isCompleted) async {
+              await _toggleChecklistItem(
+                label: label,
+                itemIndex: itemIndex,
+                isCompleted: isCompleted,
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   void _updatePhysics(Duration elapsed) {
@@ -298,10 +370,7 @@ class _StartScreenState extends State<StartScreen>
             ),
           ),
 
-          // Darkening Overlay Layer (Set to 0.2)
-          Positioned.fill(
-            child: Container(color: Colors.black.withOpacity(0.2)),
-          ),
+          const AppBackgroundOverlay(fallbackDarkness: 0.2),
 
           InteractiveViewer(
             transformationController: _transformController,
@@ -490,6 +559,10 @@ class _StartScreenState extends State<StartScreen>
 
   Widget _buildPhysicsNode(int idx, Node node) {
     double targetSize = node.isExpanded ? expandedSize : collapsedSize;
+    final challenge = challengeData[node.label];
+    final checklist = challenge?.checklist ?? const [];
+    final completedItems = checklist.where((item) => item.isCompleted).length;
+
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
@@ -551,37 +624,78 @@ class _StartScreenState extends State<StartScreen>
                       child: node.showContent
                           ? SingleChildScrollView(
                               key: const ValueKey("expanded"),
-                              physics: const NeverScrollableScrollPhysics(),
+                              physics: const BouncingScrollPhysics(),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     node.label,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 18,
+                                      fontSize: 16,
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 6),
                                   Text(
-                                    challengeData[node.label]?.description ??
-                                        "...",
+                                    challenge?.description ?? "...",
                                     textAlign: TextAlign.center,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: Colors.white70,
-                                      fontSize: 12,
+                                      fontSize: 10,
                                     ),
                                   ),
-                                  const SizedBox(height: 15),
-                                  if (!node.hasSpawnedChildren)
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white24,
-                                        foregroundColor: Colors.white,
+                                  if (checklist.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "Checklist $completedItems/${checklist.length}",
+                                      style: const TextStyle(
+                                        color: Colors.greenAccent,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      onPressed: () => _spawnNextTier(idx),
-                                      child: const Text("Unlock Tier"),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    SizedBox(
+                                      height: 34,
+                                      width: 160,
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.white24,
+                                          foregroundColor: Colors.white,
+                                          padding: EdgeInsets.zero,
+                                          textStyle: const TextStyle(
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        onPressed: () =>
+                                            _openChecklistScreen(node.label),
+                                        child: const Text("Open Checklist"),
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  if (!node.hasSpawnedChildren)
+                                    SizedBox(
+                                      height: 34,
+                                      width: 160,
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.white24,
+                                          foregroundColor: Colors.white,
+                                          padding: EdgeInsets.zero,
+                                          textStyle: const TextStyle(
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        onPressed: () => _spawnNextTier(idx),
+                                        child: const Text("Unlock Tier"),
+                                      ),
                                     )
                                   else
                                     const Icon(
@@ -595,11 +709,24 @@ class _StartScreenState extends State<StartScreen>
                           : Container(
                               alignment: Alignment.center,
                               key: const ValueKey("collapsed"),
-                              child: Text(
-                                node.label,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
+                              width: double.infinity,
+                              height: double.infinity,
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                  ),
+                                  child: Text(
+                                    node.label,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.2,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -623,17 +750,222 @@ class _StartScreenState extends State<StartScreen>
   }
 }
 
+class ChecklistScreen extends StatefulWidget {
+  final Challenge challenge;
+  final Future<void> Function(int itemIndex, bool isCompleted) onToggleItem;
+
+  const ChecklistScreen({
+    super.key,
+    required this.challenge,
+    required this.onToggleItem,
+  });
+
+  @override
+  State<ChecklistScreen> createState() => _ChecklistScreenState();
+}
+
+class _ChecklistScreenState extends State<ChecklistScreen> {
+  late List<ChecklistItem> checklist;
+
+  @override
+  void initState() {
+    super.initState();
+    checklist = [...widget.challenge.checklist];
+  }
+
+  int get completedCount {
+    return checklist.where((item) => item.isCompleted).length;
+  }
+
+  double get progress {
+    if (checklist.isEmpty) return 0;
+    return completedCount / checklist.length;
+  }
+
+  Future<void> _toggleItem(int index, bool value) async {
+    setState(() {
+      checklist[index] = checklist[index].copyWith(isCompleted: value);
+    });
+    await widget.onToggleItem(index, value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          SizedBox.expand(
+            child: Image.asset(
+              'assets/background.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  Container(color: Colors.blueGrey[900]),
+            ),
+          ),
+          const AppBackgroundOverlay(fallbackDarkness: 0.32),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 10, top: 10),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.challenge.label,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  widget.challenge.description,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                    height: 1.35,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    "$completedCount/${checklist.length}",
+                                    style: const TextStyle(
+                                      color: Colors.greenAccent,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                LinearProgressIndicator(
+                                  value: progress,
+                                  minHeight: 6,
+                                  backgroundColor: Colors.white12,
+                                  color: Colors.greenAccent,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    itemCount: checklist.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final item = checklist[index];
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                          child: CheckboxListTile(
+                            value: item.isCompleted,
+                            onChanged: (value) =>
+                                _toggleItem(index, value ?? false),
+                            activeColor: Colors.greenAccent,
+                            checkColor: Colors.black,
+                            tileColor: Colors.white.withOpacity(0.1),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: item.isCompleted
+                                    ? Colors.greenAccent.withOpacity(0.5)
+                                    : Colors.white24,
+                              ),
+                            ),
+                            title: Text(
+                              item.label,
+                              style: TextStyle(
+                                color: item.isCompleted
+                                    ? Colors.white54
+                                    : Colors.white,
+                                fontSize: 16,
+                                decoration: item.isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class GraphPainter extends CustomPainter {
   final List<Node> nodes;
   final List<List<int>> connections;
   GraphPainter(this.nodes, this.connections);
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    final inactivePaint = Paint()
       ..color = Colors.white.withOpacity(0.15)
       ..strokeWidth = 6;
-    for (var c in connections)
-      canvas.drawLine(nodes[c[0]].position, nodes[c[1]].position, paint);
+    final completedPaint = Paint()
+      ..color = Colors.greenAccent.withOpacity(0.55)
+      ..strokeWidth = 6;
+
+    for (var c in connections) {
+      final fromNode = nodes[c[0]];
+      final toNode = nodes[c[1]];
+      final isCompletedConnection =
+          fromNode.status == NodeStatus.completed &&
+          toNode.status == NodeStatus.completed;
+
+      canvas.drawLine(
+        fromNode.position,
+        toNode.position,
+        isCompletedConnection ? completedPaint : inactivePaint,
+      );
+    }
   }
 
   @override

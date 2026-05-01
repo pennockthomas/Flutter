@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_repository.dart';
 
@@ -64,16 +65,493 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
     controller.forward(from: 0);
   }
 
-  void openDetail(String name) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DetailScreen(
-          label: name,
-          description: _challengeData[name]?.description ?? "",
-        ),
-      ),
+  Future<void> _saveChallengeData() async {
+    await _challengeRepository.saveChallenges(_challengeData.values);
+  }
+
+  String _uniqueChildLabel(String parentLabel) {
+    var baseLabel = "$parentLabel Child";
+    var candidate = baseLabel;
+    var index = 2;
+    while (_challengeData.containsKey(candidate)) {
+      candidate = "$baseLabel $index";
+      index++;
+    }
+    return candidate;
+  }
+
+  Future<bool> _renameChallenge({
+    required String oldLabel,
+    required String newLabel,
+    required String description,
+  }) async {
+    final existing = _challengeData[oldLabel];
+    if (existing == null) return false;
+
+    final cleanedLabel = newLabel.trim();
+    final cleanedDescription = description.trim();
+    if (cleanedLabel.isEmpty) return false;
+    if (cleanedLabel != oldLabel && _challengeData.containsKey(cleanedLabel)) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"$cleanedLabel" already exists.')),
+      );
+      return false;
+    }
+
+    final updatedData = <String, Challenge>{};
+    for (final entry in _challengeData.entries) {
+      final challenge = entry.value;
+      final updatedUnlocks = challenge.unlocks
+          .map((label) => label == oldLabel ? cleanedLabel : label)
+          .toList();
+
+      if (entry.key == oldLabel) {
+        updatedData[cleanedLabel] = existing.copyWith(
+          label: cleanedLabel,
+          description: cleanedDescription,
+          unlocks: updatedUnlocks,
+        );
+      } else {
+        updatedData[entry.key] = challenge.copyWith(unlocks: updatedUnlocks);
+      }
+    }
+
+    setState(() => _challengeData = updatedData);
+    await _saveChallengeData();
+    return true;
+  }
+
+  Future<bool> _addChild({
+    required String parentLabel,
+    required String childLabel,
+    required String childDescription,
+  }) async {
+    final parent = _challengeData[parentLabel];
+    if (parent == null) return false;
+
+    final cleanedLabel = childLabel.trim();
+    if (cleanedLabel.isEmpty) return false;
+    if (_challengeData.containsKey(cleanedLabel)) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"$cleanedLabel" already exists.')),
+      );
+      return false;
+    }
+
+    final updatedParent = parent.copyWith(
+      unlocks: [...parent.unlocks, cleanedLabel],
     );
+    final child = Challenge(
+      label: cleanedLabel,
+      description: childDescription.trim(),
+      unlocks: const [],
+    );
+
+    setState(() {
+      _challengeData = {
+        ..._challengeData,
+        parentLabel: updatedParent,
+        cleanedLabel: child,
+      };
+    });
+    await _saveChallengeData();
+    return true;
+  }
+
+  Future<void> _toggleChecklistItem({
+    required String label,
+    required int itemIndex,
+    required bool isCompleted,
+  }) async {
+    final challenge = _challengeData[label];
+    if (challenge == null) return;
+    if (itemIndex < 0 || itemIndex >= challenge.checklist.length) return;
+
+    final updatedChecklist = [...challenge.checklist];
+    updatedChecklist[itemIndex] = updatedChecklist[itemIndex].copyWith(
+      isCompleted: isCompleted,
+    );
+
+    setState(() {
+      _challengeData = {
+        ..._challengeData,
+        label: challenge.copyWith(checklist: updatedChecklist),
+      };
+    });
+    await _saveChallengeData();
+  }
+
+  Future<bool> _addChecklistItem({
+    required String label,
+    required String itemLabel,
+  }) async {
+    final challenge = _challengeData[label];
+    if (challenge == null) return false;
+
+    final cleanedLabel = itemLabel.trim();
+    if (cleanedLabel.isEmpty) return false;
+
+    final alreadyExists = challenge.checklist.any(
+      (item) => item.label.toLowerCase() == cleanedLabel.toLowerCase(),
+    );
+    if (alreadyExists) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"$cleanedLabel" is already in this checklist.'),
+        ),
+      );
+      return false;
+    }
+
+    setState(() {
+      _challengeData = {
+        ..._challengeData,
+        label: challenge.copyWith(
+          checklist: [
+            ...challenge.checklist,
+            ChecklistItem(label: cleanedLabel),
+          ],
+        ),
+      };
+    });
+    await _saveChallengeData();
+    return true;
+  }
+
+  Set<String> _collectDescendants(String label) {
+    final collected = <String>{};
+
+    void visit(String currentLabel) {
+      if (!collected.add(currentLabel)) return;
+      for (final childLabel in _challengeData[currentLabel]?.unlocks ?? []) {
+        visit(childLabel);
+      }
+    }
+
+    visit(label);
+    return collected;
+  }
+
+  Future<bool> _deleteChallenge(String label) async {
+    if (label == "Start") return false;
+    if (!_challengeData.containsKey(label)) return false;
+
+    final labelsToDelete = _collectDescendants(label);
+    final updatedData = <String, Challenge>{};
+
+    for (final entry in _challengeData.entries) {
+      if (labelsToDelete.contains(entry.key)) continue;
+
+      updatedData[entry.key] = entry.value.copyWith(
+        unlocks: entry.value.unlocks
+            .where((childLabel) => !labelsToDelete.contains(childLabel))
+            .toList(),
+      );
+    }
+
+    setState(() => _challengeData = updatedData);
+    await _saveChallengeData();
+    return true;
+  }
+
+  Future<void> _confirmDeleteChallenge(String label) async {
+    if (label == "Start") return;
+    final labelsToDelete = _collectDescendants(label);
+    final childCount = labelsToDelete.length - 1;
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF101510),
+          title: Text(
+            'Delete "$label"?',
+            style: const TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            childCount == 0
+                ? "This removes the bubble from the playground."
+                : "This removes the bubble and $childCount child bubble(s).",
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+    final didDelete = await _deleteChallenge(label);
+    if (didDelete && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _openAddChildSheet(String label) async {
+    if (!_challengeData.containsKey(label)) return;
+
+    final childNameController = TextEditingController(
+      text: _uniqueChildLabel(label),
+    );
+    final childDescriptionController = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black.withOpacity(0.85),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return _EditorSheetFrame(
+          title: "Add child to $label",
+          children: [
+            TextField(
+              controller: childNameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Child name",
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.greenAccent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: childDescriptionController,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Child description",
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.greenAccent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                final didAdd = await _addChild(
+                  parentLabel: label,
+                  childLabel: childNameController.text,
+                  childDescription: childDescriptionController.text,
+                );
+                if (didAdd && context.mounted) Navigator.pop(context);
+              },
+              child: const Text("Add Child"),
+            ),
+          ],
+        );
+      },
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      childNameController.dispose();
+      childDescriptionController.dispose();
+    });
+  }
+
+  Future<void> _openNodeEditor(String label) async {
+    final challenge = _challengeData[label];
+    if (challenge == null) return;
+
+    final nameController = TextEditingController(text: challenge.label);
+    final descriptionController = TextEditingController(
+      text: challenge.description,
+    );
+    final checklistItemController = TextEditingController();
+    final canRename = label != "Start";
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black.withOpacity(0.85),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return _EditorSheetFrame(
+          title: label,
+          children: [
+            TextField(
+              controller: nameController,
+              enabled: canRename,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: canRename ? "Bubble name" : "Root bubble name",
+                labelStyle: const TextStyle(color: Colors.white70),
+                helperText: canRename ? null : "Start stays fixed as root.",
+                helperStyle: const TextStyle(color: Colors.white54),
+                enabledBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                disabledBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.greenAccent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descriptionController,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Description",
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.greenAccent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                final didSave = await _renameChallenge(
+                  oldLabel: label,
+                  newLabel: canRename ? nameController.text : label,
+                  description: descriptionController.text,
+                );
+                if (didSave && context.mounted) Navigator.pop(context);
+              },
+              child: const Text("Save Bubble"),
+            ),
+            const Divider(color: Colors.white24, height: 32),
+            StatefulBuilder(
+              builder: (context, setSheetState) {
+                final currentChallenge = _challengeData[label];
+                final checklist = currentChallenge?.checklist ?? const [];
+                final completedCount = checklist
+                    .where((item) => item.isCompleted)
+                    .length;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      "Checklist $completedCount/${checklist.length}",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (checklist.isEmpty)
+                      const Text(
+                        "No product swaps yet.",
+                        style: TextStyle(color: Colors.white54),
+                      )
+                    else
+                      ...checklist.asMap().entries.map((entry) {
+                        return CheckboxListTile(
+                          value: entry.value.isCompleted,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: Colors.greenAccent,
+                          checkColor: Colors.black,
+                          title: Text(
+                            entry.value.label,
+                            style: TextStyle(
+                              color: entry.value.isCompleted
+                                  ? Colors.white54
+                                  : Colors.white,
+                              decoration: entry.value.isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                            ),
+                          ),
+                          onChanged: (value) async {
+                            await _toggleChecklistItem(
+                              label: label,
+                              itemIndex: entry.key,
+                              isCompleted: value ?? false,
+                            );
+                            setSheetState(() {});
+                          },
+                        );
+                      }),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: checklistItemController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: "Add product swap",
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white30),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.greenAccent),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () async {
+                        final didAdd = await _addChecklistItem(
+                          label: label,
+                          itemLabel: checklistItemController.text,
+                        );
+                        if (!didAdd) return;
+                        checklistItemController.clear();
+                        setSheetState(() {});
+                      },
+                      child: const Text("Add Checklist Item"),
+                    ),
+                  ],
+                );
+              },
+            ),
+            if (canRename) ...[
+              const SizedBox(height: 10),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent),
+                ),
+                onPressed: () => _confirmDeleteChallenge(label),
+                child: const Text("Delete Bubble"),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nameController.dispose();
+      descriptionController.dispose();
+      checklistItemController.dispose();
+    });
+  }
+
+  void openDetail(String name) {
+    _openNodeEditor(name);
   }
 
   _PlaygroundLayout _buildPlaygroundLayout(Size screenSize) {
@@ -167,7 +645,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
                 ),
               ),
             ),
-            Container(color: Colors.black.withOpacity(0.2)),
+            const AppBackgroundOverlay(fallbackDarkness: 0.2),
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
             else
@@ -195,6 +673,8 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
                                   child: GlassCircle(
                                     label: entry.key,
                                     onTap: () => openDetail(entry.key),
+                                    onLongPress: () =>
+                                        _openAddChildSheet(entry.key),
                                   ),
                                 );
                               }),
@@ -246,14 +726,84 @@ class _PlaygroundLayout {
   });
 }
 
+class _EditorSheetFrame extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _EditorSheetFrame({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 12,
+          bottom: bottomInset + 12,
+        ),
+        child: SizedBox(
+          height: screenHeight * 0.82,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: children,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class GlassCircle extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
-  const GlassCircle({super.key, required this.label, this.onTap});
+  final VoidCallback? onLongPress;
+  const GlassCircle({
+    super.key,
+    required this.label,
+    this.onTap,
+    this.onLongPress,
+  });
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: ClipOval(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
@@ -326,7 +876,7 @@ class DetailScreen extends StatelessWidget {
           SizedBox.expand(
             child: Image.asset('assets/background.jpg', fit: BoxFit.cover),
           ),
-          Container(color: Colors.black.withOpacity(0.25)),
+          const AppBackgroundOverlay(fallbackDarkness: 0.25),
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32),

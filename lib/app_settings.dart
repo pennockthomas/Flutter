@@ -1,0 +1,72 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class AppSettingKeys {
+  static const backgroundDarkness = 'settings.background_darkness';
+  static const startupSound = 'settings.startup_sound';
+  static const systemSounds = 'settings.system_sounds';
+  static const backgroundMusic = 'settings.background_music';
+  static const dailyReminders = 'settings.daily_reminders';
+  static const milestoneAlerts = 'settings.milestone_alerts';
+  static const friendUpdates = 'settings.friend_updates';
+  static const shareTotalProgress = 'settings.share_total_progress';
+  static const shareCategoryProgress = 'settings.share_category_progress';
+  static const shareChecklistItems = 'settings.share_checklist_items';
+  static const reducedMotion = 'settings.reduced_motion';
+  static const highContrastText = 'settings.high_contrast_text';
+}
+
+class AppSettings {
+  static final ValueNotifier<double> backgroundDarkness = ValueNotifier<double>(
+    0.2,
+  );
+
+  static Future<void> loadBackgroundDarkness({
+    double fallbackDarkness = 0.2,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    backgroundDarkness.value =
+        prefs.getDouble(AppSettingKeys.backgroundDarkness) ?? fallbackDarkness;
+  }
+
+  static Future<void> setBackgroundDarkness(double value) async {
+    backgroundDarkness.value = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(AppSettingKeys.backgroundDarkness, value);
+  }
+}
+
+class AppBackgroundOverlay extends StatefulWidget {
+  final double fallbackDarkness;
+
+  const AppBackgroundOverlay({super.key, this.fallbackDarkness = 0.2});
+
+  @override
+  State<AppBackgroundOverlay> createState() => _AppBackgroundOverlayState();
+}
+
+class _AppBackgroundOverlayState extends State<AppBackgroundOverlay> {
+  late double _darkness = widget.fallbackDarkness;
+
+  @override
+  void initState() {
+    super.initState();
+    _darkness = AppSettings.backgroundDarkness.value;
+    AppSettings.loadBackgroundDarkness(
+      fallbackDarkness: widget.fallbackDarkness,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<double>(
+      valueListenable: AppSettings.backgroundDarkness,
+      builder: (context, darkness, child) {
+        _darkness = darkness;
+        return Positioned.fill(
+          child: Container(color: Colors.black.withOpacity(_darkness)),
+        );
+      },
+    );
+  }
+}

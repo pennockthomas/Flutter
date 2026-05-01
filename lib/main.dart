@@ -1,7 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
+import 'app_settings.dart';
+import 'challenge_repository.dart';
 import 'playground.dart';
+import 'profile_page.dart';
+import 'progress_register_page.dart';
 import 'settings.dart';
 import 'start_page.dart';
 
@@ -191,8 +195,61 @@ class _StartupScreenState extends State<StartupScreen>
 
 // ---------------- HOME SCREEN ----------------
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ChallengeRepository _challengeRepository = ChallengeRepository();
+  bool _showWelcomeCard = true;
+  int _completedItems = 0;
+  int _totalItems = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProgress();
+    Future.delayed(const Duration(milliseconds: 2200), () {
+      if (!mounted) return;
+      setState(() => _showWelcomeCard = false);
+    });
+  }
+
+  Future<void> _loadProgress() async {
+    final challenges = await _challengeRepository.loadChallenges();
+    if (!mounted) return;
+
+    final totalItems = challenges.values.fold(
+      0,
+      (total, challenge) => total + challenge.checklist.length,
+    );
+    final completedItems = challenges.values.fold(
+      0,
+      (total, challenge) =>
+          total + challenge.checklist.where((item) => item.isCompleted).length,
+    );
+
+    setState(() {
+      _completedItems = completedItems;
+      _totalItems = totalItems;
+    });
+  }
+
+  Future<void> _openPage(Widget page) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => page),
+    );
+    await _loadProgress();
+  }
+
+  double get _progress {
+    if (_totalItems == 0) return 0;
+    return _completedItems / _totalItems;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +259,14 @@ class HomeScreen extends StatelessWidget {
           SizedBox.expand(
             child: Image.asset('assets/background.jpg', fit: BoxFit.cover),
           ),
-          Container(color: Colors.black.withOpacity(0.2)),
+          const AppBackgroundOverlay(fallbackDarkness: 0.2),
+          _ProfileWelcomeButton(
+            showWelcomeCard: _showWelcomeCard,
+            completedItems: _completedItems,
+            totalItems: _totalItems,
+            progress: _progress,
+            onTap: () => _openPage(const ProfilePage()),
+          ),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -210,39 +274,197 @@ class HomeScreen extends StatelessWidget {
                 GlassButton(
                   text: "Start",
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const StartScreen(),
-                      ),
-                    );
+                    _openPage(const StartScreen());
+                  },
+                ),
+                const SizedBox(height: 20),
+                GlassButton(
+                  text: "Progress Register",
+                  onPressed: () {
+                    _openPage(const ProgressRegisterPage());
                   },
                 ),
                 const SizedBox(height: 20),
                 GlassButton(
                   text: "Playground",
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PlaygroundScreen(),
-                      ),
-                    );
+                    _openPage(const PlaygroundScreen());
                   },
                 ),
                 const SizedBox(height: 20),
                 GlassButton(
                   text: "Settings",
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SettingsScreen(),
-                      ),
-                    );
+                    _openPage(const SettingsScreen());
                   },
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileWelcomeButton extends StatelessWidget {
+  final bool showWelcomeCard;
+  final int completedItems;
+  final int totalItems;
+  final double progress;
+  final VoidCallback onTap;
+
+  const _ProfileWelcomeButton({
+    required this.showWelcomeCard,
+    required this.completedItems,
+    required this.totalItems,
+    required this.progress,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final cardWidth = (screenWidth - 40).clamp(64.0, 340.0);
+
+    return SafeArea(
+      child: AnimatedAlign(
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeInOutCubic,
+        alignment: showWelcomeCard ? Alignment.topCenter : Alignment.topRight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          child: GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 650),
+              curve: Curves.easeInOutCubic,
+              width: showWelcomeCard ? cardWidth : 64,
+              height: showWelcomeCard ? 88 : 64,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(showWelcomeCard ? 24 : 32),
+                border: Border.all(color: Colors.white.withOpacity(0.28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.greenAccent.withOpacity(0.12),
+                    blurRadius: 26,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  child: showWelcomeCard
+                      ? Padding(
+                          key: const ValueKey('welcome'),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              _MenuProgressAvatar(
+                                progress: progress,
+                                size: 54,
+                                fontSize: 16,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Welcome back, Thomas',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '$completedItems/$totalItems swaps completed',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Center(
+                          key: const ValueKey('avatar'),
+                          child: _MenuProgressAvatar(
+                            progress: progress,
+                            size: 52,
+                            fontSize: 15,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuProgressAvatar extends StatelessWidget {
+  final double progress;
+  final double size;
+  final double fontSize;
+
+  const _MenuProgressAvatar({
+    required this.progress,
+    required this.size,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 3,
+              backgroundColor: Colors.white12,
+              color: Colors.greenAccent,
+            ),
+          ),
+          Container(
+            width: size - 9,
+            height: size - 9,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Center(
+              child: Text(
+                'TP',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],

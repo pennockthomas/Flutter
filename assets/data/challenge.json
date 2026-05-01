@@ -2,81 +2,230 @@
   {
     "id": "Start",
     "description": "Welcome to your sustainable journey! Small steps lead to big changes.",
-    "unlocks": ["Kitchen", "Bathroom", "On-The-Go"]
+    "unlocks": ["Kitchen", "Bathroom", "On-The-Go"],
+    "checklist": []
   },
   {
     "id": "Kitchen",
-    "description": "The heart of the home. Let's tackle single-use plastics here first.",
-    "unlocks": ["Food Storage", "Dish Washing", "Bulk Buying"]
+    "description": "The heart of the home. Replace plastic tools with stainless steel, wood, glass, and natural fibers.",
+    "unlocks": ["Food Storage", "Dish Washing", "Bulk Buying"],
+    "checklist": [
+      "Metal knives",
+      "Wooden cutting boards",
+      "Wooden spoons",
+      "Stainless steel spatula",
+      "Stainless steel whisk",
+      "Stainless steel ladle",
+      "Stainless steel tongs",
+      "Stainless steel mixing bowls",
+      "Glass measuring jug",
+      "Wooden rolling pin",
+      "Cast iron pan",
+      "Steel colander"
+    ]
   },
   {
     "id": "Bathroom",
-    "description": "Personal care doesn't need to be personal waste.",
-    "unlocks": ["Solid Soaps", "Dental Care", "Sustainable Shaving"]
+    "description": "Personal care does not need to become plastic waste.",
+    "unlocks": ["Solid Soaps", "Dental Care", "Sustainable Shaving"],
+    "checklist": [
+      "Bamboo toothbrush",
+      "Toothpaste tablets",
+      "Glass jar cotton swabs",
+      "Wooden nail brush",
+      "Stainless steel tweezers",
+      "Reusable cotton rounds",
+      "Natural loofah",
+      "Refillable soap dispenser"
+    ]
   },
   {
     "id": "On-The-Go",
     "description": "Prevent waste before it happens while you are out and about.",
-    "unlocks": ["Zero-Waste Kit", "Sustainable Fashion"]
+    "unlocks": ["Zero-Waste Kit", "Sustainable Fashion"],
+    "checklist": [
+      "Stainless steel water bottle",
+      "Reusable coffee cup",
+      "Metal cutlery set",
+      "Cotton tote bag",
+      "Cotton produce bags",
+      "Stainless steel straw",
+      "Reusable lunch wrap",
+      "Metal snack container"
+    ]
   },
   {
     "id": "Food Storage",
-    "description": "Replace cling wrap with beeswax wraps and glass containers.",
-    "unlocks": []
+    "description": "Replace cling wrap, plastic tubs, and disposable bags with durable storage.",
+    "unlocks": [],
+    "checklist": [
+      "Glass food containers",
+      "Stainless steel lunch box",
+      "Glass jars",
+      "Beeswax wraps",
+      "Metal bread box",
+      "Cotton bowl covers",
+      "Stainless steel clips",
+      "Glass freezer containers",
+      "Ceramic leftovers bowl",
+      "Reusable cotton bread bag"
+    ]
   },
   {
     "id": "Dish Washing",
-    "description": "Swap plastic sponges for compostable loofahs or wooden brushes.",
-    "unlocks": []
+    "description": "Swap plastic sponges and bottles for compostable tools and refillable products.",
+    "unlocks": [],
+    "checklist": [
+      "Wooden dish brush",
+      "Replaceable brush head",
+      "Compostable loofah sponge",
+      "Copper scrubber",
+      "Solid dish soap block",
+      "Glass soap dispenser",
+      "Wooden bottle brush",
+      "Natural fiber dish cloth",
+      "Stainless steel soap tray"
+    ]
   },
   {
     "id": "Bulk Buying",
-    "description": "Shop at zero-waste stores using your own cloth bags and jars.",
-    "unlocks": ["Pantry Goals"]
+    "description": "Shop at refill and zero-waste stores using your own bags, jars, and containers.",
+    "unlocks": ["Pantry Goals"],
+    "checklist": [
+      "Cotton produce bags",
+      "Glass bulk jars",
+      "Stainless steel scoop",
+      "Reusable shopping tote",
+      "Refillable oil bottle",
+      "Refillable vinegar bottle",
+      "Paper labels",
+      "Wooden crate for shopping"
+    ]
   },
   {
     "id": "Pantry Goals",
-    "description": "A beautiful, plastic-free pantry organized in glass.",
-    "unlocks": []
+    "description": "Build a plastic-free pantry organized with glass, steel, paper, and wood.",
+    "unlocks": [],
+    "checklist": [
+      "Glass pasta jars",
+      "Glass spice jars",
+      "Metal funnel",
+      "Wooden spice rack",
+      "Paper pantry labels",
+      "Glass cereal jars",
+      "Stainless steel measuring spoons",
+      "Reusable jar lids"
+    ]
   },
   {
     "id": "Solid Soaps",
-    "description": "Switch to shampoo, conditioner, and body bars to remove plastic bottles.",
-    "unlocks": []
+    "description": "Switch to bars and refillables to remove plastic bottles from the shower.",
+    "unlocks": [],
+    "checklist": [
+      "Shampoo bar",
+      "Conditioner bar",
+      "Body soap bar",
+      "Wooden soap dish",
+      "Travel soap tin",
+      "Refillable glass pump bottle",
+      "Natural fiber soap pouch"
+    ]
   },
   {
     "id": "Dental Care",
-    "description": "Bamboo toothbrushes and toothpaste tablets to save the oceans.",
-    "unlocks": []
+    "description": "Use low-waste dental products made from bamboo, glass, metal, or paper.",
+    "unlocks": [],
+    "checklist": [
+      "Bamboo toothbrush",
+      "Toothpaste tablets",
+      "Glass tablet jar",
+      "Silk dental floss",
+      "Metal tongue scraper",
+      "Refillable mouthwash tablets",
+      "Paper-packaged interdental brushes"
+    ]
   },
   {
     "id": "Sustainable Shaving",
-    "description": "Invest in a safety razor—the last razor you'll ever need to buy.",
-    "unlocks": []
+    "description": "Invest in durable shaving tools instead of disposable razors.",
+    "unlocks": [],
+    "checklist": [
+      "Stainless steel safety razor",
+      "Metal razor blades",
+      "Shaving soap bar",
+      "Wooden shaving brush",
+      "Blade recycling tin",
+      "Alum block",
+      "Glass aftershave bottle"
+    ]
   },
   {
     "id": "Zero-Waste Kit",
-    "description": "Pack a reusable water bottle, coffee cup, and cutlery set.",
-    "unlocks": ["Takeout Pro"]
+    "description": "Pack reusable essentials so you can refuse single-use plastic anywhere.",
+    "unlocks": ["Takeout Pro"],
+    "checklist": [
+      "Stainless steel water bottle",
+      "Reusable coffee cup",
+      "Metal cutlery set",
+      "Cloth napkin",
+      "Cotton tote bag",
+      "Stainless steel straw",
+      "Small glass jar",
+      "Reusable snack tin"
+    ]
   },
   {
     "id": "Takeout Pro",
     "description": "Bring your own containers when ordering food to go.",
-    "unlocks": []
+    "unlocks": [],
+    "checklist": [
+      "Stainless steel takeaway box",
+      "Glass takeaway container",
+      "Reusable soup jar",
+      "Metal cutlery pouch",
+      "Cloth napkin",
+      "Reusable pizza bag",
+      "Deposit cup app or card"
+    ]
   },
   {
     "id": "Sustainable Fashion",
-    "description": "Mend your clothes and shop secondhand to reduce microplastic runoff.",
-    "unlocks": ["Community Impact"]
+    "description": "Mend clothes and choose natural fibers to reduce plastic and microplastic waste.",
+    "unlocks": ["Community Impact"],
+    "checklist": [
+      "Wooden clothes brush",
+      "Metal safety pins",
+      "Sewing repair kit",
+      "Natural fiber clothing",
+      "Cotton laundry bag",
+      "Wooden hangers",
+      "Secondhand wool sweater",
+      "Linen shirt"
+    ]
   },
   {
     "id": "Community Impact",
-    "description": "You've mastered home! Now lead a local cleanup or advocate for policy change.",
-    "unlocks": ["Eco-Warrior"]
+    "description": "You have mastered home. Now help others reduce plastic too.",
+    "unlocks": ["Eco-Warrior"],
+    "checklist": [
+      "Organize a local cleanup",
+      "Share refill-store map",
+      "Gift a starter zero-waste kit",
+      "Ask cafe to accept reusable cups",
+      "Start a swap shelf",
+      "Teach a repair session"
+    ]
   },
   {
     "id": "Eco-Warrior",
-    "description": "You are a sustainable legend. Continue inspiring those around you!",
-    "unlocks": []
+    "description": "You are a sustainable legend. Continue inspiring those around you.",
+    "unlocks": [],
+    "checklist": [
+      "Review your remaining plastic items",
+      "Create a yearly replacement plan",
+      "Help one friend switch",
+      "Support plastic-free local policy",
+      "Keep improving your checklist"
+    ]
   }
 ]
