@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
@@ -40,6 +41,8 @@ class _StartupScreenState extends State<StartupScreen>
   late AnimationController _controller;
   late Animation<double> _iconGrow;
   late Animation<double> _fadeText;
+  Timer? _startupTimer;
+  bool _didNavigate = false;
 
   // ✅ Audio player instance
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -68,7 +71,7 @@ class _StartupScreenState extends State<StartupScreen>
     // ✅ Fire the sound and animation
     _playStartupSound();
     _controller.forward();
-    _navigateToHome();
+    _startupTimer = Timer(const Duration(milliseconds: 4200), _goToHome);
   }
 
   Future<void> _playStartupSound() async {
@@ -87,10 +90,9 @@ class _StartupScreenState extends State<StartupScreen>
     }
   }
 
-  Future<void> _navigateToHome() async {
-    await Future.delayed(const Duration(milliseconds: 4000));
-
-    if (!mounted) return;
+  void _goToHome() {
+    if (!mounted || _didNavigate) return;
+    _didNavigate = true;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -106,6 +108,7 @@ class _StartupScreenState extends State<StartupScreen>
 
   @override
   void dispose() {
+    _startupTimer?.cancel();
     _controller.dispose();
     _audioPlayer.dispose(); // ✅ Clean up player
     super.dispose();
@@ -185,6 +188,19 @@ class _StartupScreenState extends State<StartupScreen>
                   ),
                 ),
               ],
+            ),
+          ),
+          Positioned(
+            right: 24,
+            bottom: 24,
+            child: SafeArea(
+              child: TextButton(
+                onPressed: _goToHome,
+                child: const Text(
+                  "Continue",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
             ),
           ),
         ],

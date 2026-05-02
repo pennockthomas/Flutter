@@ -558,7 +558,9 @@ class _StartScreenState extends State<StartScreen>
   }
 
   Widget _buildPhysicsNode(int idx, Node node) {
-    double targetSize = node.isExpanded ? expandedSize : collapsedSize;
+    final isStartNode = node.label == "Start";
+    final nodeCollapsedSize = isStartNode ? collapsedSize + 22 : collapsedSize;
+    double targetSize = node.isExpanded ? expandedSize : nodeCollapsedSize;
     final challenge = challengeData[node.label];
     final checklist = challenge?.checklist ?? const [];
     final completedItems = checklist.where((item) => item.isCompleted).length;
@@ -566,7 +568,7 @@ class _StartScreenState extends State<StartScreen>
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
-      tween: Tween<double>(begin: collapsedSize, end: targetSize),
+      tween: Tween<double>(begin: nodeCollapsedSize, end: targetSize),
       onEnd: () {
         if (node.isExpanded) setState(() => node.showContent = true);
       },
@@ -606,17 +608,47 @@ class _StartScreenState extends State<StartScreen>
                   height: animSize,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: node.status == NodeStatus.completed
+                    gradient: isStartNode && !node.isExpanded
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.greenAccent.withOpacity(0.26),
+                              Colors.green.withOpacity(0.22),
+                              Colors.amberAccent.withOpacity(0.12),
+                            ],
+                          )
+                        : null,
+                    color: isStartNode && !node.isExpanded
+                        ? null
+                        : node.status == NodeStatus.completed
                         ? Colors.green.withOpacity(0.15)
                         : Colors.white.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(
                       node.isExpanded ? 30 : animSize / 2,
                     ),
                     border: Border.all(
-                      color: node.status == NodeStatus.completed
+                      color: isStartNode && !node.isExpanded
+                          ? Colors.greenAccent.withOpacity(0.72)
+                          : node.status == NodeStatus.completed
                           ? Colors.green.withOpacity(0.4)
                           : Colors.white.withOpacity(0.25),
+                      width: isStartNode && !node.isExpanded ? 2.2 : 1.0,
                     ),
+                    boxShadow: isStartNode && !node.isExpanded
+                        ? [
+                            BoxShadow(
+                              color: Colors.greenAccent.withOpacity(0.24),
+                              blurRadius: 28,
+                              spreadRadius: 4,
+                            ),
+                            BoxShadow(
+                              color: Colors.amberAccent.withOpacity(0.12),
+                              blurRadius: 44,
+                              spreadRadius: 10,
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Center(
                     child: AnimatedSwitcher(
@@ -716,17 +748,39 @@ class _StartScreenState extends State<StartScreen>
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 6,
                                   ),
-                                  child: Text(
-                                    node.label,
-                                    textAlign: TextAlign.center,
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.2,
-                                    ),
-                                  ),
+                                  child: isStartNode
+                                      ? Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(
+                                              Icons.eco_rounded,
+                                              color: Colors.greenAccent,
+                                              size: 28,
+                                            ),
+                                            SizedBox(height: 6),
+                                            Text(
+                                              "Start",
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold,
+                                                height: 1.1,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Text(
+                                          node.label,
+                                          textAlign: TextAlign.center,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                            height: 1.2,
+                                          ),
+                                        ),
                                 ),
                               ),
                             ),

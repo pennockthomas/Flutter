@@ -20,10 +20,14 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
   static const double verticalSpacing = 145;
   static const double topPadding = 180;
   static const double sidePadding = 90;
+  static const double minTreeZoom = 0.35;
+  static const double maxTreeZoom = 2.5;
 
   Offset offset = Offset.zero;
   late AnimationController controller;
   late Animation<Offset> animation;
+  final TransformationController _treeTransformController =
+      TransformationController();
 
   final ChallengeRepository _challengeRepository = ChallengeRepository();
   Map<String, Challenge> _challengeData = {};
@@ -219,6 +223,25 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
     });
     await _saveChallengeData();
     return true;
+  }
+
+  Future<void> _deleteChecklistItem({
+    required String label,
+    required int itemIndex,
+  }) async {
+    final challenge = _challengeData[label];
+    if (challenge == null) return;
+    if (itemIndex < 0 || itemIndex >= challenge.checklist.length) return;
+
+    final updatedChecklist = [...challenge.checklist]..removeAt(itemIndex);
+
+    setState(() {
+      _challengeData = {
+        ..._challengeData,
+        label: challenge.copyWith(checklist: updatedChecklist),
+      };
+    });
+    await _saveChallengeData();
   }
 
   Set<String> _collectDescendants(String label) {
@@ -468,31 +491,52 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
                       )
                     else
                       ...checklist.asMap().entries.map((entry) {
-                        return CheckboxListTile(
-                          value: entry.value.isCompleted,
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          activeColor: Colors.greenAccent,
-                          checkColor: Colors.black,
-                          title: Text(
-                            entry.value.label,
-                            style: TextStyle(
-                              color: entry.value.isCompleted
-                                  ? Colors.white54
-                                  : Colors.white,
-                              decoration: entry.value.isCompleted
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxListTile(
+                                value: entry.value.isCompleted,
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                activeColor: Colors.greenAccent,
+                                checkColor: Colors.black,
+                                title: Text(
+                                  entry.value.label,
+                                  style: TextStyle(
+                                    color: entry.value.isCompleted
+                                        ? Colors.white54
+                                        : Colors.white,
+                                    decoration: entry.value.isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                ),
+                                onChanged: (value) async {
+                                  await _toggleChecklistItem(
+                                    label: label,
+                                    itemIndex: entry.key,
+                                    isCompleted: value ?? false,
+                                  );
+                                  setSheetState(() {});
+                                },
+                              ),
                             ),
-                          ),
-                          onChanged: (value) async {
-                            await _toggleChecklistItem(
-                              label: label,
-                              itemIndex: entry.key,
-                              isCompleted: value ?? false,
-                            );
-                            setSheetState(() {});
-                          },
+                            IconButton(
+                              tooltip: "Remove product swap",
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                                size: 22,
+                              ),
+                              onPressed: () async {
+                                await _deleteChecklistItem(
+                                  label: label,
+                                  itemIndex: entry.key,
+                                );
+                                setSheetState(() {});
+                              },
+                            ),
+                          ],
                         );
                       }),
                     const SizedBox(height: 8),
@@ -554,57 +598,89 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
     _openNodeEditor(name);
   }
 
+  void _zoomTree(double zoomDelta) {
+    final currentScale = _treeTransformController.value.getMaxScaleOnAxis();
+    final nextScale = (currentScale + zoomDelta).clamp(
+      minTreeZoom,
+      maxTreeZoom,
+    );
+    final scaleChange = nextScale / currentScale;
+    final nextMatrix = Matrix4.copy(_treeTransformController.value)
+      ..scale(scaleChange);
+
+    setState(() {
+      _treeTransformController.value = nextMatrix;
+    });
+  }
+
   _PlaygroundLayout _buildPlaygroundLayout(Size screenSize) {
-    final rows = <int, List<String>>{};
-    final depths = <String, int>{};
     final edges = <_PlaygroundConnection>[];
-    final queue = <String>["Start"];
+    final positions = <String, Offset>{};
+    final visited = <String>{};
+    var nextLeafX = sidePadding;
+    var maxDepth = 0;
 
-    depths["Start"] = 0;
+    double placeSubtree(String label, int depth) {
+      final challenge = _challengeData[label];
+      if (challenge == null) return nextLeafX;
+      if (!visited.add(label)) {
+        return positions[label]?.dx ?? nextLeafX;
+      }
 
-    for (var queueIndex = 0; queueIndex < queue.length; queueIndex++) {
-      final label = queue[queueIndex];
-      final depth = depths[label] ?? 0;
-      rows.putIfAbsent(depth, () => []).add(label);
+      maxDepth = depth > maxDepth ? depth : maxDepth;
+      final childLabels = challenge.unlocks
+          .where((childLabel) => _challengeData.containsKey(childLabel))
+          .toList();
 
-      for (final childLabel in _challengeData[label]?.unlocks ?? <String>[]) {
+      for (final childLabel in childLabels) {
         edges.add(_PlaygroundConnection(label, childLabel));
-        if (!depths.containsKey(childLabel)) {
-          depths[childLabel] = depth + 1;
-          queue.add(childLabel);
-        }
+      }
+
+      final x = childLabels.isEmpty
+          ? nextLeafX
+          : childLabels
+                    .map((childLabel) => placeSubtree(childLabel, depth + 1))
+                    .reduce((a, b) => a + b) /
+                childLabels.length;
+
+      if (childLabels.isEmpty) {
+        nextLeafX += horizontalSpacing;
+      }
+
+      positions[label] = Offset(x, topPadding + depth * verticalSpacing);
+      return x;
+    }
+
+    placeSubtree("Start", 0);
+
+    for (final label in _challengeData.keys) {
+      if (!visited.contains(label)) {
+        nextLeafX += horizontalSpacing;
+        placeSubtree(label, 0);
       }
     }
 
-    final maxRowSize = rows.values.fold<int>(
-      1,
-      (largest, row) => row.length > largest ? row.length : largest,
-    );
-    final maxDepth = rows.keys.isEmpty
-        ? 0
-        : rows.keys.reduce((a, b) => a > b ? a : b);
-    final canvasWidth = (maxRowSize - 1) * horizontalSpacing + sidePadding * 2;
+    final contentWidth = positions.values.isEmpty
+        ? screenSize.width
+        : positions.values
+                  .map((position) => position.dx)
+                  .reduce((a, b) => a > b ? a : b) +
+              sidePadding;
+    final resolvedWidth = contentWidth < screenSize.width
+        ? screenSize.width
+        : contentWidth;
+    if (contentWidth < screenSize.width) {
+      final shift = (screenSize.width - contentWidth) / 2;
+      positions.updateAll(
+        (label, position) => Offset(position.dx + shift, position.dy),
+      );
+    }
+
     final canvasHeight =
         topPadding + maxDepth * verticalSpacing + nodeSize + 80;
-    final resolvedWidth = canvasWidth < screenSize.width
-        ? screenSize.width
-        : canvasWidth;
     final resolvedHeight = canvasHeight < screenSize.height
         ? screenSize.height
         : canvasHeight;
-
-    final positions = <String, Offset>{};
-    for (final entry in rows.entries) {
-      final depth = entry.key;
-      final labels = entry.value;
-      final rowWidth = (labels.length - 1) * horizontalSpacing;
-      final startX = (resolvedWidth - rowWidth) / 2;
-      final y = topPadding + depth * verticalSpacing;
-
-      for (var i = 0; i < labels.length; i++) {
-        positions[labels[i]] = Offset(startX + i * horizontalSpacing, y);
-      }
-    }
 
     return _PlaygroundLayout(
       size: Size(resolvedWidth, resolvedHeight),
@@ -616,89 +692,131 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
   @override
   void dispose() {
     controller.dispose();
+    _treeTransformController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GestureDetector(
-        onPanUpdate: (details) {
-          controller.stop();
-          setState(() {
-            offset += details.delta * 0.5;
-            offset = Offset(offset.dx.clamp(-80, 80), offset.dy.clamp(-80, 80));
-          });
-        },
-        onPanEnd: (_) => animateBack(),
-        child: Stack(
-          children: [
-            Transform.translate(
-              offset: offset * 0.2,
-              child: Transform.scale(
-                scale: 1.2,
-                child: SizedBox.expand(
-                  child: Image.asset(
-                    'assets/background.jpg',
-                    fit: BoxFit.cover,
-                  ),
-                ),
+      body: Stack(
+        children: [
+          Transform.translate(
+            offset: offset * 0.2,
+            child: Transform.scale(
+              scale: 1.2,
+              child: SizedBox.expand(
+                child: Image.asset('assets/background.jpg', fit: BoxFit.cover),
               ),
             ),
-            const AppBackgroundOverlay(fallbackDarkness: 0.2),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final layout = _buildPlaygroundLayout(
-                    Size(constraints.maxWidth, constraints.maxHeight),
-                  );
+          ),
+          const AppBackgroundOverlay(fallbackDarkness: 0.2),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final layout = _buildPlaygroundLayout(
+                  Size(constraints.maxWidth, constraints.maxHeight),
+                );
 
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: layout.size.width,
-                      height: layout.size.height,
-                      child: Transform.translate(
-                        offset: offset,
-                        child: CustomPaint(
-                          painter: _LinePainter(layout.positions, layout.edges),
-                          child: Stack(
-                            children: [
-                              ...layout.positions.entries.map((entry) {
-                                return Positioned(
-                                  left: entry.value.dx - nodeSize / 2,
-                                  top: entry.value.dy - nodeSize / 2,
-                                  child: GlassCircle(
-                                    label: entry.key,
-                                    onTap: () => openDetail(entry.key),
-                                    onLongPress: () =>
-                                        _openAddChildSheet(entry.key),
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
-                        ),
+                return InteractiveViewer(
+                  transformationController: _treeTransformController,
+                  constrained: false,
+                  minScale: minTreeZoom,
+                  maxScale: maxTreeZoom,
+                  boundaryMargin: const EdgeInsets.all(400),
+                  child: SizedBox(
+                    width: layout.size.width,
+                    height: layout.size.height,
+                    child: CustomPaint(
+                      painter: _LinePainter(layout.positions, layout.edges),
+                      child: Stack(
+                        children: [
+                          ...layout.positions.entries.map((entry) {
+                            return Positioned(
+                              left: entry.value.dx - nodeSize / 2,
+                              top: entry.value.dy - nodeSize / 2,
+                              child: GlassCircle(
+                                label: entry.key,
+                                onTap: () => openDetail(entry.key),
+                                onLongPress: () =>
+                                    _openAddChildSheet(entry.key),
+                              ),
+                            );
+                          }),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
-            Positioned(
-              top: 50,
-              left: 10,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
+                  ),
+                );
+              },
             ),
-          ],
+          Positioned(
+            top: 50,
+            left: 10,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 28,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          Positioned(
+            right: 18,
+            bottom: 28,
+            child: Column(
+              children: [
+                _ZoomButton(icon: Icons.add, onPressed: () => _zoomTree(0.2)),
+                const SizedBox(height: 10),
+                _ZoomButton(
+                  icon: Icons.remove,
+                  onPressed: () => _zoomTree(-0.2),
+                ),
+                const SizedBox(height: 10),
+                _ZoomButton(
+                  icon: Icons.center_focus_strong,
+                  onPressed: () {
+                    setState(() {
+                      _treeTransformController.value = Matrix4.identity();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ZoomButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _ZoomButton({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Material(
+          color: Colors.white.withOpacity(0.12),
+          shape: CircleBorder(
+            side: BorderSide(color: Colors.white.withOpacity(0.24)),
+          ),
+          child: InkWell(
+            onTap: onPressed,
+            child: SizedBox(
+              width: 46,
+              height: 46,
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+          ),
         ),
       ),
     );
