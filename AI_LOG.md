@@ -88,6 +88,17 @@ Verified with `flutter analyze` (clean) and `flutter test` (all passing, includi
 Files: `lib/challenge_store.dart`, `lib/main.dart`, `lib/profile_page.dart`, `lib/progress_register_page.dart`, `lib/start_page.dart`, `test/challenge_store_test.dart`
 Commit: 177de6d
 
+## 2026-09-26 — Extracted duplicated GlassPanel widget
+
+`profile_page.dart` and `friends_page.dart` each defined their own private `_GlassPanel` with identical blur/opacity/border styling (`friends_page.dart`'s version just added a `padding` parameter). Moved it to `lib/glass_panel.dart` as a public `GlassPanel` and updated both screens to use it.
+
+Deliberately did *not* touch the other inlined `BackdropFilter` blocks in `settings.dart`, `playground.dart`, and `start_page.dart` — those back circular node bubbles and differently-sized bottom sheets, a visually distinct pattern from the rounded-rectangle info panel, not a duplicate of the same thing. Unifying those would need real design-system thinking, not a straight extraction.
+
+Verified with `flutter analyze`/`flutter test`, and visually on the simulator: Profile and Friends render identically to before.
+
+Files: `lib/glass_panel.dart` (new), `lib/profile_page.dart`, `lib/friends_page.dart`
+Commit: 3e471f7
+
 ---
 
 ## Known issues not yet fixed
@@ -102,7 +113,7 @@ From a full-codebase review, roughly ranked by impact. Struck-through items are 
 6. `ChallengeRepository.loadChallenges()` still always re-merges and rewrites the save file the first time it's called each session. Mitigated (not eliminated) by the shared store above.
 7. ~~`test/widget_test.dart` was still the unmodified Flutter counter-app template; no real test coverage~~ — fixed 2026-09-26 (repository/store unit tests added; UI-level coverage is still thin).
 8. ~~Progress-calculation logic duplicated across `main.dart`, `profile_page.dart`, `progress_register_page.dart`~~ — fixed 2026-09-26 (moved onto `ChallengeStore`).
-9. The glass/blur panel widget is reimplemented separately in `profile_page.dart`, `friends_page.dart`, and inlined ad hoc elsewhere.
+9. ~~Glass/blur panel widget reimplemented separately in `profile_page.dart` and `friends_page.dart`~~ — fixed 2026-09-26 (extracted to `lib/glass_panel.dart`). Other inlined `BackdropFilter` uses elsewhere are a different visual pattern (bubbles/sheets), left alone deliberately.
 10. `start_page.dart` and `playground.dart` are 1000+ line God files, each mixing physics/layout, CRUD, dialogs, and rendering in one `State` class.
 11. Per-frame O(n²) physics simulation in `start_page.dart` runs 60x/sec even at rest, rebuilding several `BackdropFilter`s — will degrade as the tree grows.
 12. ~~Dead orphaned `main()` in `start_page.dart`~~ — fixed 2026-09-26.
