@@ -8,6 +8,7 @@ import 'app_settings.dart';
 import 'app_user.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
+import 'notifications.dart';
 
 enum NodeStatus { available, completed }
 
@@ -333,6 +334,10 @@ class _StartScreenState extends State<StartScreen>
     });
     if (!challenge.isFullyCompleted && updatedChallenge.isFullyCompleted) {
       await AppSettings.playSoundEffectIfEnabled(AppSounds.challengeFinished);
+      await NotificationService.instance.showMilestoneAlert(
+        title: 'Challenge complete!',
+        body: 'You finished every swap in $label.',
+      );
     } else {
       await AppSettings.playSystemSoundIfEnabled();
     }

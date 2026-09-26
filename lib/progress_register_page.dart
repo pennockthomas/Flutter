@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
+import 'notifications.dart';
 
 class ProgressRegisterPage extends StatefulWidget {
   const ProgressRegisterPage({super.key});
@@ -142,6 +143,10 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
     _applyChallenges(updatedChallenges);
     if (!challenge.isFullyCompleted && updatedChallenge.isFullyCompleted) {
       await AppSettings.playSoundEffectIfEnabled(AppSounds.challengeFinished);
+      await NotificationService.instance.showMilestoneAlert(
+        title: 'Challenge complete!',
+        body: 'You finished every swap in ${challenge.label}.',
+      );
     } else {
       await AppSettings.playSystemSoundIfEnabled();
     }

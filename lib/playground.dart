@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
+import 'notifications.dart';
 
 // ---------------- PLAYGROUND SCREEN (FIXED LAYOUT) ----------------
 
@@ -189,6 +190,10 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
     });
     if (!challenge.isFullyCompleted && updatedChallenge.isFullyCompleted) {
       await AppSettings.playSoundEffectIfEnabled(AppSounds.challengeFinished);
+      await NotificationService.instance.showMilestoneAlert(
+        title: 'Challenge complete!',
+        body: 'You finished every swap in $label.',
+      );
     } else {
       await AppSettings.playSystemSoundIfEnabled();
     }

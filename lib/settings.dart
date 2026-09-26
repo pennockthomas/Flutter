@@ -10,6 +10,7 @@ import 'app_settings.dart';
 import 'app_user.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
+import 'notifications.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -253,18 +254,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context,
                         Icons.notifications_active_outlined,
                         "Notifications",
-                        const [
+                        [
                           _SettingSwitchTile(
                             label: "Daily Reminders",
                             preferenceKey: AppSettingKeys.dailyReminders,
                             defaultValue: true,
+                            onChanged: (_) =>
+                                NotificationService.instance.syncDailyReminders(),
                           ),
-                          _SettingSwitchTile(
+                          const _SettingSwitchTile(
                             label: "Milestone Alerts",
                             preferenceKey: AppSettingKeys.milestoneAlerts,
                             defaultValue: true,
                           ),
-                          _SettingSwitchTile(
+                          const _SettingSwitchTile(
                             label: "Friend Updates",
                             preferenceKey: AppSettingKeys.friendUpdates,
                             defaultValue: false,

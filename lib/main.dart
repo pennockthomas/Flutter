@@ -7,6 +7,7 @@ import 'app_settings.dart';
 import 'app_user.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
+import 'notifications.dart';
 import 'playground.dart';
 import 'profile_page.dart';
 import 'progress_register_page.dart';
@@ -75,6 +76,7 @@ class _StartupScreenState extends State<StartupScreen>
     _playStartupSound();
     BackgroundMusicController.instance.syncWithSettings();
     AppSettings.loadReducedMotion();
+    NotificationService.instance.syncDailyReminders();
     _controller.forward();
     _startupTimer = Timer(const Duration(milliseconds: 4200), _goToHome);
   }
