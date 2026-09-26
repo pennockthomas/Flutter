@@ -74,6 +74,7 @@ class _StartupScreenState extends State<StartupScreen>
     // ✅ Fire the sound and animation
     _playStartupSound();
     BackgroundMusicController.instance.syncWithSettings();
+    AppSettings.loadReducedMotion();
     _controller.forward();
     _startupTimer = Timer(const Duration(milliseconds: 4200), _goToHome);
   }
@@ -348,10 +349,13 @@ class _ProfileWelcomeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final cardWidth = (screenWidth - 40).clamp(64.0, 340.0);
+    final transitionDuration = AppSettings.reducedMotion.value
+        ? Duration.zero
+        : const Duration(milliseconds: 650);
 
     return SafeArea(
       child: AnimatedAlign(
-        duration: const Duration(milliseconds: 650),
+        duration: transitionDuration,
         curve: Curves.easeInOutCubic,
         alignment: showWelcomeCard ? Alignment.topCenter : Alignment.topRight,
         child: Padding(
@@ -359,7 +363,7 @@ class _ProfileWelcomeButton extends StatelessWidget {
           child: GestureDetector(
             onTap: onTap,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 650),
+              duration: transitionDuration,
               curve: Curves.easeInOutCubic,
               width: showWelcomeCard ? cardWidth : 64,
               height: showWelcomeCard ? 88 : 64,

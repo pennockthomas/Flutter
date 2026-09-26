@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'dart:ui';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
 import 'app_user.dart';
 import 'background_music.dart';
+import 'challenge_store.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -26,6 +30,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     await AppSettings.loadBackgroundDarkness();
+  }
+
+  Future<void> _exportProgress() async {
+    try {
+      final path = await ChallengeStore.instance.editableFilePath();
+      final file = File(path);
+      if (!await file.exists()) {
+        _showMessage('Nothing to export yet.');
+        return;
+      }
+      // Use a screen-local rect rather than this route's global position:
+      // this button lives on a screen pushed on top of SettingsScreen, and
+      // that covered route sits at a parallax-shifted (non-zero) offset
+      // that the share sheet's native side rejects as out of bounds.
+      final screenSize = MediaQuery.sizeOf(context);
+      final sharePositionOrigin = Rect.fromLTWH(
+        0,
+        0,
+        screenSize.width,
+        screenSize.height,
+      );
+
+      await Share.shareXFiles(
+        [XFile(path)],
+        subject: 'EcoSteps progress',
+        sharePositionOrigin: sharePositionOrigin,
+      );
+    } catch (e) {
+      _showMessage('Could not export progress.');
+    }
+  }
+
+  Future<void> _importProgress() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      final path = result?.files.single.path;
+      if (path == null) return;
+
+      final jsonText = await File(path).readAsString();
+      final succeeded = await ChallengeStore.instance.importFromJson(
+        jsonText,
+      );
+      _showMessage(
+        succeeded
+            ? 'Progress imported.'
+            : "That file doesn't look like an EcoSteps export.",
+      );
+    } catch (e) {
+      _showMessage('Could not import progress.');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _navigateToSubPage(
@@ -115,10 +179,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _BackgroundDarknessTile(
                             darkness: _backgroundDarkness,
                           ),
-                          const _SettingSwitchTile(
+                          _SettingSwitchTile(
                             label: "Reduce Motion",
                             preferenceKey: AppSettingKeys.reducedMotion,
                             defaultValue: false,
+                            onChanged: AppSettings.setReducedMotion,
                           ),
                           const _SettingSwitchTile(
                             label: "High Contrast Text",
@@ -159,7 +224,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _infoTile("Storage", "Local JSON file"),
                           _infoTile("Progress Register", "Enabled"),
                           _infoTile("Developer Editor", "Local seed editor"),
-                          _infoTile("Export / Import", "Coming later"),
+                          _actionTile("Export Progress", _exportProgress),
+                          _actionTile("Import Progress", _importProgress),
                           _infoTile("Reset Progress", "Available in Start"),
                         ],
                       ),
@@ -329,6 +395,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  static Widget _actionTile(String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.greenAccent),
+          ],
+        ),
       ),
     );
   }

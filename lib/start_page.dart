@@ -246,7 +246,7 @@ class _StartScreenState extends State<StartScreen>
       ..translate(targetX, targetY)
       ..scale(targetScale);
 
-    if (animateZoom) {
+    if (animateZoom && !AppSettings.reducedMotion.value) {
       _cameraAnimation =
           Matrix4Tween(
             begin: _transformController.value,

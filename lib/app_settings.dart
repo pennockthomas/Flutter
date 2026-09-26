@@ -28,6 +28,12 @@ class AppSettings {
     0.2,
   );
 
+  /// Whether camera/transition animations should be skipped in favor of
+  /// snapping instantly. Read synchronously wherever an animation is about
+  /// to start; call [loadReducedMotion] once at startup to populate it and
+  /// [setReducedMotion] when the Settings toggle changes.
+  static final ValueNotifier<bool> reducedMotion = ValueNotifier<bool>(false);
+
   static final AudioPlayer _effectsPlayer = AudioPlayer();
 
   static Future<void> loadBackgroundDarkness({
@@ -42,6 +48,15 @@ class AppSettings {
     backgroundDarkness.value = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(AppSettingKeys.backgroundDarkness, value);
+  }
+
+  static Future<void> loadReducedMotion() async {
+    final prefs = await SharedPreferences.getInstance();
+    reducedMotion.value = prefs.getBool(AppSettingKeys.reducedMotion) ?? false;
+  }
+
+  static void setReducedMotion(bool value) {
+    reducedMotion.value = value;
   }
 
   /// Plays the platform's UI click sound (no custom audio asset needed)

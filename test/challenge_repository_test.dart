@@ -100,4 +100,56 @@ void main() {
     expect(reloaded.containsKey('Start'), isTrue);
     expect(reloaded.containsKey('Kitchen'), isTrue);
   });
+
+  group('importFromJson', () {
+    test('replaces saved data with valid exported JSON', () async {
+      final challenges = await repository.loadChallenges();
+      final withoutKitchen = Map.of(challenges)..remove('Kitchen');
+      await repository.saveChallenges(withoutKitchen.values);
+      final exportedJson =
+          File(await repository.editableFilePath()).readAsStringSync();
+
+      // A second, independent repository (e.g. after reinstalling the app)
+      // imports what the first one exported.
+      final freshTempDir =
+          Directory.systemTemp.createTempSync('challenge_import_test');
+      addTearDown(() => freshTempDir.deleteSync(recursive: true));
+      PathProviderPlatform.instance = _FakePathProviderPlatform(
+        freshTempDir.path,
+      );
+      final freshRepository = ChallengeRepository();
+
+      final succeeded = await freshRepository.importFromJson(exportedJson);
+      final imported = await freshRepository.loadChallenges();
+
+      expect(succeeded, isTrue);
+      expect(imported.containsKey('Kitchen'), isFalse);
+    });
+
+    test('accepts the legacy bare-list format', () async {
+      final seedChallenges = await repository.loadChallenges();
+      final legacyJson = jsonEncode(
+        seedChallenges.values.map((Challenge c) => c.toJson()).toList(),
+      );
+
+      final succeeded = await repository.importFromJson(legacyJson);
+
+      expect(succeeded, isTrue);
+    });
+
+    test('rejects malformed JSON without touching existing data', () async {
+      final challenges = await repository.loadChallenges();
+
+      final succeeded = await repository.importFromJson('{ not valid json');
+
+      expect(succeeded, isFalse);
+      final stillThere = await repository.loadChallenges();
+      expect(stillThere.keys.toSet(), challenges.keys.toSet());
+    });
+
+    test('rejects well-formed JSON that is not a save file', () async {
+      final succeeded = await repository.importFromJson('{"hello": "world"}');
+      expect(succeeded, isFalse);
+    });
+  });
 }

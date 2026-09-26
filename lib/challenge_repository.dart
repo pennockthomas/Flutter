@@ -45,6 +45,22 @@ class ChallengeRepository {
     await _writeChallengeFile(file, challenges, seenSeedIds);
   }
 
+  /// Replaces the saved challenge data with [jsonText] if (and only if) it
+  /// parses as a valid save file (either the current or legacy format).
+  /// Returns whether the import succeeded; on failure, existing data is
+  /// left untouched.
+  Future<bool> importFromJson(String jsonText) async {
+    try {
+      _decodeChallengeFile(jsonText);
+    } catch (_) {
+      return false;
+    }
+
+    final file = await _editableChallengeFile();
+    await file.writeAsString(jsonText);
+    return true;
+  }
+
   Future<void> resetEditableChallenges() async {
     final file = await _editableChallengeFile();
     if (await file.exists()) {

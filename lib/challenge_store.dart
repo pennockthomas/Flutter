@@ -58,4 +58,17 @@ class ChallengeStore extends ChangeNotifier {
     await _repository.saveChallenges(_challenges.values);
     notifyListeners();
   }
+
+  /// Path to the file backing the current save data, for exporting.
+  Future<String> editableFilePath() => _repository.editableFilePath();
+
+  /// Replaces the saved data with [jsonText] if it's valid, then reloads so
+  /// every screen picks up the imported data. Returns whether it succeeded.
+  Future<bool> importFromJson(String jsonText) async {
+    final succeeded = await _repository.importFromJson(jsonText);
+    if (succeeded) {
+      await reload();
+    }
+    return succeeded;
+  }
 }
