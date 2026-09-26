@@ -169,6 +169,15 @@ Verified on the simulator by pressing the Home button: the home screen now shows
 Files: `ios/Runner/Info.plist`, `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated)
 Commit: 29539dc
 
+## 2026-09-26 — Rotated the icon's vein 90 degrees; saved the generator into the repo
+
+Thomas's feedback: the vein line was rotated wrong. It was running along the axis connecting the two circles that form the leaf's body; rotated both its endpoints 90 degrees around the leaf's center (verified numerically - the line's direction genuinely flipped from one diagonal to the other, not a no-op) so it now crosses the leaf the other way, and regenerated all 15 icon sizes. Verified again on the simulator via the Home button.
+
+Also moved the icon generator from the session scratchpad into `tool/generate_app_icon.py` (plus its 1024px output, `tool/app_icon_master.png`), since a scratchpad script won't survive to the next session and this is clearly something that'll get tweaked again. Verified the repo copy reproduces the currently-shipped icon byte-for-byte before committing it.
+
+Files: `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated), `tool/generate_app_icon.py` (new), `tool/app_icon_master.png` (new)
+Commits: a03543d, 35f9859
+
 ---
 
 ## Roadmap status ("make the whole app function as advertised")
