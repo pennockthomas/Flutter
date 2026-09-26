@@ -198,14 +198,25 @@ Commit: d438a75
 
 ---
 
-## Roadmap status ("make the whole app function as advertised")
+## Roadmap ("make the whole app function as advertised, not just bug-free")
 
-Agreed 2026-09-26. Phase 3 (real accounts + Friends/Sharing backend) needs its own explicit go-ahead before starting - it's a different order of magnitude (new backend, auth, privacy decisions), not a line item.
+Agreed 2026-09-26, after the initial bug-fix/code-quality pass was done. The goal shifted from "fix what's broken" to "make every Settings toggle and advertised feature actually do something real." Full original plan, with current status:
 
-- Phase 0 (cleanup): done.
-- Phase 1 (local features): System Sounds ✅, Background Music ✅, Export/Import Progress ✅, Reduce Motion ✅ (camera/transition animations only, not the physics simulation - see item 11). High Contrast Text: **removed instead of built** - Thomas doesn't want it, and it would have needed a real app-wide theme first (colors are hardcoded per-widget across every screen) to do anything real. `AppSettingKeys.highContrastText` and its Settings toggle are gone; don't re-add without asking. Phase 1 is otherwise complete.
-- Phase 2 (local notifications - Daily Reminders, Milestone Alerts via `flutter_local_notifications`): not started.
-- Phase 3 (real accounts + Friends/Sharing backend): not started, deliberately deferred pending a separate decision.
+**Phase 0 — Cleanup (~15 min).** Fix any stale "Coming later" labels for features that already secretly exist. ✅ Done (the Reset Progress label).
+
+**Phase 1 — Local-only features, no backend needed.** Each independent, originally estimated 1–5 hrs apiece:
+- System Sounds ✅ — `SystemSound.play()`, no custom asset needed.
+- Background Music ✅ — loops `assets/sounds/background.wav` via a singleton controller, synced to Settings + app lifecycle.
+- Export/Import Progress ✅ — native share sheet / document picker, `ChallengeRepository.importFromJson()` validates before writing.
+- Reduce Motion ✅ — camera zoom/pan and the Home welcome-card transition snap instantly when enabled; the continuous physics simulation itself is untouched (see known issue 11).
+- High Contrast Text — **removed instead of built.** Thomas doesn't want it, and it would have needed a real app-wide theme first (colors are hardcoded per-widget across every screen) to do anything real. `AppSettingKeys.highContrastText` and its toggle are gone from Settings; don't re-add without asking.
+- Phase 1 is complete.
+
+**Phase 2 — Local notifications (~4–6 hrs).** Daily Reminders + Milestone Alerts via `flutter_local_notifications`: needs an iOS permission-request flow, scheduling logic (daily repeating + threshold-triggered one-offs), and wiring to the two existing Notifications toggles. **Not started.**
+
+**Phase 3 — Real accounts + Friends/Sharing backend (3–5 days, a different order of magnitude).** Choosing a backend (Firebase/Supabase is the fast path), building sign-up/sign-in, a real data model for friends + shared progress, an add-friend/invite flow, replacing the 3 hardcoded mock friends in `friends_page.dart`, and wiring the three "Share X Progress" toggles to something real. Cloud Sync (Privacy & Security) piggybacks on the same backend. **Not started - needs its own explicit go-ahead before starting, since it changes the app from "local personal tool" to "has a backend and other people's data" (hosting, privacy, cost).**
+
+Rough total if everything gets built: ~1–2 days for Phases 0–2 (now mostly spent), plus 3–5 days for Phase 3 if it happens.
 
 ---
 
