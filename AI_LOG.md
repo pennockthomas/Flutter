@@ -151,6 +151,24 @@ Verified with `flutter analyze`/`flutter test` (18 tests, all passing, including
 Files: `ios/Podfile.lock`, `pubspec.yaml`, `pubspec.lock`, platform-generated plugin registrants (linux/macos/windows), `lib/app_settings.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/main.dart`, `lib/settings.dart`, `lib/start_page.dart`, `test/challenge_repository_test.dart`
 Commit: b76d4bc
 
+## 2026-09-26 — Removed High Contrast Text setting
+
+Thomas doesn't want it, and it would have needed a real app-wide theme first to do anything real. Removed `AppSettingKeys.highContrastText` and its Settings toggle rather than leaving another dead one. Verified on the simulator: Appearance now just shows Background Brightness, Reduce Motion, and Current Theme.
+
+Files: `lib/app_settings.dart`, `lib/settings.dart`
+Commit: 4e6c9c8
+
+## 2026-09-26 — Replaced the default Flutter app icon and home screen title
+
+The app was still shipping the Flutter template's default icon and "Flut" as its home screen name. Set `CFBundleDisplayName` to "EcoSteps" in `ios/Runner/Info.plist`. For the icon, no image-generation tool was available, so it was drawn programmatically with Pillow: a leaf shape (intersection of two offset circles, i.e. a vesica/lens, tilted diagonally with a vein+stem drawn on top) in `Colors.greenAccent`, on the same deep-eco-black background with a soft green glow the splash screen already uses - script and 1024px master kept in the scratchpad, not the repo. Resized to all 15 required iOS sizes via `sips` directly into `Assets.xcassets/AppIcon.appiconset/`, confirmed each is fully opaque (no alpha channel - Apple rejects icons that have one).
+
+iOS only - other platforms (Android/web/macos/etc.) still have the default icon, since iOS is the only platform actually built and tested this session.
+
+Verified on the simulator by pressing the Home button: the home screen now shows the new leaf icon and "EcoSteps" instead of the Flutter logo and "Flut".
+
+Files: `ios/Runner/Info.plist`, `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated)
+Commit: 29539dc
+
 ---
 
 ## Roadmap status ("make the whole app function as advertised")
