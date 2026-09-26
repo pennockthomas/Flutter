@@ -1,11 +1,10 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
 import 'friends_page.dart';
+import 'glass_panel.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -151,7 +150,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildFriendsCard() {
-    return _GlassPanel(
+    return GlassPanel(
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -200,7 +199,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileCard() {
-    return _GlassPanel(
+    return GlassPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -267,7 +266,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildCategoryCard() {
-    return _GlassPanel(
+    return GlassPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -314,7 +313,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildRecentCard() {
     final completed = _completedExamples;
 
-    return _GlassPanel(
+    return GlassPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -406,32 +405,6 @@ class _ProgressAvatar extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GlassPanel extends StatelessWidget {
-  final Widget child;
-
-  const _GlassPanel({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white24),
-          ),
-          child: child,
-        ),
       ),
     );
   }

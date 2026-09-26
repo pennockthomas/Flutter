@@ -1,8 +1,7 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
+import 'glass_panel.dart';
 
 class FriendsPage extends StatelessWidget {
   const FriendsPage({super.key});
@@ -84,7 +83,7 @@ class FriendsPage extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-                  child: _GlassPanel(
+                  child: GlassPanel(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
@@ -132,7 +131,7 @@ class _FriendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassPanel(
+    return GlassPanel(
       padding: EdgeInsets.zero,
       child: InkWell(
         onTap: () {
@@ -233,7 +232,7 @@ class _FriendProfilePage extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
                     children: [
-                      _GlassPanel(
+                      GlassPanel(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -291,7 +290,7 @@ class _FriendProfilePage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _GlassPanel(
+                      GlassPanel(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -338,7 +337,7 @@ class _FriendProfilePage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _GlassPanel(
+                      GlassPanel(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -443,35 +442,6 @@ class _FriendAvatar extends StatelessWidget {
   }
 }
 
-class _GlassPanel extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassPanel({
-    required this.child,
-    this.padding = const EdgeInsets.all(18),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          width: double.infinity,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white24),
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
 
 class _FriendProfile {
   final String name;
