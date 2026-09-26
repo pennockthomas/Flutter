@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_settings.dart';
 import 'app_user.dart';
+import 'background_music.dart';
 import 'challenge_store.dart';
 import 'playground.dart';
 import 'profile_page.dart';
@@ -72,6 +73,7 @@ class _StartupScreenState extends State<StartupScreen>
 
     // ✅ Fire the sound and animation
     _playStartupSound();
+    BackgroundMusicController.instance.syncWithSettings();
     _controller.forward();
     _startupTimer = Timer(const Duration(milliseconds: 4200), _goToHome);
   }
@@ -220,12 +222,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _showWelcomeCard = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ChallengeStore.instance.addListener(_onChallengesChanged);
     _loadProgress();
     Future.delayed(const Duration(milliseconds: 2200), () {
@@ -236,8 +239,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     ChallengeStore.instance.removeListener(_onChallengesChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    BackgroundMusicController.instance.handleAppLifecycleChange(
+      state == AppLifecycleState.resumed,
+    );
   }
 
   void _onChallengesChanged() {

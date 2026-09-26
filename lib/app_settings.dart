@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,10 +18,17 @@ class AppSettingKeys {
   static const highContrastText = 'settings.high_contrast_text';
 }
 
+class AppSounds {
+  static const String tierUnlocked = 'sounds/new unlock.wav';
+  static const String challengeFinished = 'sounds/Finished.wav';
+}
+
 class AppSettings {
   static final ValueNotifier<double> backgroundDarkness = ValueNotifier<double>(
     0.2,
   );
+
+  static final AudioPlayer _effectsPlayer = AudioPlayer();
 
   static Future<void> loadBackgroundDarkness({
     double fallbackDarkness = 0.2,
@@ -44,6 +52,16 @@ class AppSettings {
     final enabled = prefs.getBool(AppSettingKeys.systemSounds) ?? true;
     if (!enabled) return;
     await SystemSound.play(SystemSoundType.click);
+  }
+
+  /// Plays a bundled sound effect (see [AppSounds]) when the System Sounds
+  /// setting is enabled, for moments a plain platform click isn't enough
+  /// (unlocking a new tier, finishing a challenge's checklist).
+  static Future<void> playSoundEffectIfEnabled(String assetPath) async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool(AppSettingKeys.systemSounds) ?? true;
+    if (!enabled) return;
+    await _effectsPlayer.play(AssetSource(assetPath));
   }
 }
 

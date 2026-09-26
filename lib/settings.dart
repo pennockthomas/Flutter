@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
 import 'app_user.dart';
+import 'background_music.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -166,13 +167,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context,
                         Icons.volume_up_rounded,
                         "Sounds",
-                        const [
-                          _SettingSwitchTile(
+                        [
+                          const _SettingSwitchTile(
                             label: "Startup Sound",
                             preferenceKey: AppSettingKeys.startupSound,
                             defaultValue: true,
                           ),
-                          _SettingSwitchTile(
+                          const _SettingSwitchTile(
                             label: "System Sounds",
                             preferenceKey: AppSettingKeys.systemSounds,
                             defaultValue: true,
@@ -181,6 +182,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             label: "Background Music",
                             preferenceKey: AppSettingKeys.backgroundMusic,
                             defaultValue: false,
+                            onChanged: (_) =>
+                                BackgroundMusicController.instance
+                                    .syncWithSettings(),
                           ),
                         ],
                       ),
@@ -334,11 +338,13 @@ class _SettingSwitchTile extends StatefulWidget {
   final String label;
   final String preferenceKey;
   final bool defaultValue;
+  final ValueChanged<bool>? onChanged;
 
   const _SettingSwitchTile({
     required this.label,
     required this.preferenceKey,
     required this.defaultValue,
+    this.onChanged,
   });
 
   @override
@@ -367,6 +373,7 @@ class _SettingSwitchTileState extends State<_SettingSwitchTile> {
     await prefs.setBool(widget.preferenceKey, value);
     if (!mounted) return;
     setState(() => _value = value);
+    widget.onChanged?.call(value);
   }
 
   @override

@@ -41,6 +41,9 @@ class Challenge {
     this.checklist = const [],
   });
 
+  bool get isFullyCompleted =>
+      checklist.isNotEmpty && checklist.every((item) => item.isCompleted);
+
   Challenge copyWith({
     String? label,
     String? description,

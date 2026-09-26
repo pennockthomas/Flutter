@@ -66,8 +66,7 @@ class _StartScreenState extends State<StartScreen>
   final math.Random _random = math.Random();
 
   bool _isChallengeChecklistComplete(String label) {
-    final checklist = challengeData[label]?.checklist ?? const [];
-    return checklist.isNotEmpty && checklist.every((item) => item.isCompleted);
+    return challengeData[label]?.isFullyCompleted ?? false;
   }
 
   Future<void> _saveChallengeData() async {
@@ -278,6 +277,7 @@ class _StartScreenState extends State<StartScreen>
       }
       if (parentNode.rootCategory != null)
         _updateCategoryProgress(parentNode.rootCategory!);
+      await AppSettings.playSoundEffectIfEnabled(AppSounds.tierUnlocked);
     }
 
     setState(() {
@@ -325,15 +325,17 @@ class _StartScreenState extends State<StartScreen>
     updatedChecklist[itemIndex] = updatedChecklist[itemIndex].copyWith(
       isCompleted: isCompleted,
     );
+    final updatedChallenge = challenge.copyWith(checklist: updatedChecklist);
 
     setState(() {
-      challengeData = {
-        ...challengeData,
-        label: challenge.copyWith(checklist: updatedChecklist),
-      };
+      challengeData = {...challengeData, label: updatedChallenge};
       _syncNodeCompletionFromChecklist(label);
     });
-    await AppSettings.playSystemSoundIfEnabled();
+    if (!challenge.isFullyCompleted && updatedChallenge.isFullyCompleted) {
+      await AppSettings.playSoundEffectIfEnabled(AppSounds.challengeFinished);
+    } else {
+      await AppSettings.playSystemSoundIfEnabled();
+    }
     await _saveChallengeData();
   }
 

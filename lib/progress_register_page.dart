@@ -140,7 +140,11 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
       challenge.label: updatedChallenge,
     };
     _applyChallenges(updatedChallenges);
-    await AppSettings.playSystemSoundIfEnabled();
+    if (!challenge.isFullyCompleted && updatedChallenge.isFullyCompleted) {
+      await AppSettings.playSoundEffectIfEnabled(AppSounds.challengeFinished);
+    } else {
+      await AppSettings.playSystemSoundIfEnabled();
+    }
     await ChallengeStore.instance.save(updatedChallenges);
   }
 

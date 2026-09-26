@@ -182,14 +182,16 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
     updatedChecklist[itemIndex] = updatedChecklist[itemIndex].copyWith(
       isCompleted: isCompleted,
     );
+    final updatedChallenge = challenge.copyWith(checklist: updatedChecklist);
 
     setState(() {
-      _challengeData = {
-        ..._challengeData,
-        label: challenge.copyWith(checklist: updatedChecklist),
-      };
+      _challengeData = {..._challengeData, label: updatedChallenge};
     });
-    await AppSettings.playSystemSoundIfEnabled();
+    if (!challenge.isFullyCompleted && updatedChallenge.isFullyCompleted) {
+      await AppSettings.playSoundEffectIfEnabled(AppSounds.challengeFinished);
+    } else {
+      await AppSettings.playSystemSoundIfEnabled();
+    }
     await _saveChallengeData();
   }
 
