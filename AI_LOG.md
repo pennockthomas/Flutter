@@ -114,6 +114,17 @@ Added `test/app_user_test.dart` for the `firstName`/`initials` derivation logic.
 Files: `lib/app_user.dart` (new), `test/app_user_test.dart` (new), `lib/main.dart`, `lib/settings.dart`, `lib/profile_page.dart`, `lib/start_page.dart`
 Commit: 62111e0
 
+## 2026-09-26 — Roadmap agreed; started Phase 1 (making dead Settings toggles real)
+
+Discussed the goal of making the whole app actually function as advertised, not just bug-free. Agreed a roadmap: Phase 0 (cleanup), Phase 1 (local-only features: System Sounds, Background Music, Export/Import, Reduce Motion, High Contrast Text), Phase 2 (local notifications), Phase 3 (real accounts + Friends/Sharing backend - explicitly called out as a much bigger, separate undertaking needing its own go-ahead before starting).
+
+Phase 0 + first Phase 1 item done: added `AppSettings.playSystemSoundIfEnabled()`, which plays the platform's UI click sound via `SystemSound.play()` (no custom audio asset needed) gated on the System Sounds toggle, wired into all three checklist-toggle call sites. Also fixed the stale "Reset Progress: Coming later" Settings label (that feature already exists on the Start screen).
+
+Verified with `flutter analyze`/`flutter test` and on the simulator: toggling a checklist item works with no exceptions.
+
+Files: `lib/app_settings.dart`, `lib/playground.dart`, `lib/progress_register_page.dart`, `lib/settings.dart`, `lib/start_page.dart`
+Commit: 6b0a2a9
+
 ---
 
 ## Known issues not yet fixed
