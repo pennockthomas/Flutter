@@ -152,6 +152,65 @@ class _StartScreenState extends State<StartScreen>
     }
   }
 
+  Future<void> _confirmResetProgress() async {
+    final shouldReset = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF101510),
+          title: const Text(
+            'Reset progress?',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'This clears every unlocked bubble and checklist item. '
+            'This cannot be undone.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldReset == true) {
+      await _resetProgress();
+    }
+  }
+
+  Future<void> _resetProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final progressKeys = prefs
+        .getKeys()
+        .where((key) => key.startsWith('progress_') || key == 'unlocked_nodes')
+        .toList();
+    for (final key in progressKeys) {
+      await prefs.remove(key);
+    }
+
+    final resetChallenges = {
+      for (final entry in challengeData.entries)
+        entry.key: entry.value.copyWith(
+          checklist: entry.value.checklist
+              .map((item) => item.copyWith(isCompleted: false))
+              .toList(),
+        ),
+    };
+    await _challengeRepository.saveChallenges(resetChallenges.values);
+
+    if (!mounted) return;
+    setState(() => isLoading = true);
+    await _loadInitialData();
+  }
+
   Future<void> _updateCategoryProgress(String category) async {
     if (!categories.containsKey(category)) return;
     final prefs = await SharedPreferences.getInstance();
@@ -420,9 +479,7 @@ class _StartScreenState extends State<StartScreen>
               opacity: 0.5,
               child: IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white, size: 28),
-                onPressed: () async {
-                  (await SharedPreferences.getInstance()).clear();
-                },
+                onPressed: _confirmResetProgress,
               ),
             ),
           ),

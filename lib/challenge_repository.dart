@@ -17,23 +17,32 @@ class ChallengeRepository {
     );
 
     if (!await file.exists()) {
-      await _writeChallenges(file, seedChallenges.values);
+      await _writeChallengeFile(file, seedChallenges.values, seedChallenges.keys.toSet());
       return seedChallenges;
     }
 
-    final editableChallenges = _decodeChallenges(await file.readAsString());
+    final saved = _decodeChallengeFile(await file.readAsString());
     final mergedChallenges = _mergeSeedDefaults(
       seedChallenges: seedChallenges,
-      editableChallenges: editableChallenges,
+      editableChallenges: saved.challenges,
+      previouslySeenSeedIds: saved.seenSeedIds,
     );
 
-    await _writeChallenges(file, mergedChallenges.values);
+    // Remember every seed id we've ever shown, so a challenge the user
+    // deleted or renamed away from isn't re-added from the seed on a later
+    // load just because its id is momentarily absent from the saved file.
+    final updatedSeenSeedIds = {...saved.seenSeedIds, ...seedChallenges.keys};
+
+    await _writeChallengeFile(file, mergedChallenges.values, updatedSeenSeedIds);
     return mergedChallenges;
   }
 
   Future<void> saveChallenges(Iterable<Challenge> challenges) async {
     final file = await _editableChallengeFile();
-    await _writeChallenges(file, challenges);
+    final seenSeedIds = await file.exists()
+        ? _decodeChallengeFile(await file.readAsString()).seenSeedIds
+        : <String>{};
+    await _writeChallengeFile(file, challenges, seenSeedIds);
   }
 
   Future<void> resetEditableChallenges() async {
@@ -62,15 +71,48 @@ class ChallengeRepository {
     };
   }
 
+  _SavedChallengeFile _decodeChallengeFile(String jsonText) {
+    final decoded = jsonDecode(jsonText);
+
+    // Older saves were a bare list of challenges with no seen-ids tracking.
+    if (decoded is List) {
+      return _SavedChallengeFile(
+        challenges: _decodeChallenges(jsonText),
+        seenSeedIds: const {},
+      );
+    }
+
+    final map = decoded as Map<String, dynamic>;
+    final challengesJson = map['challenges'] as List<dynamic>;
+    return _SavedChallengeFile(
+      challenges: {
+        for (final item in challengesJson)
+          (item as Map<String, dynamic>)['id'] as String: Challenge.fromJson(
+            item,
+          ),
+      },
+      seenSeedIds: {
+        for (final id in (map['seenSeedIds'] as List<dynamic>? ?? const []))
+          id as String,
+      },
+    );
+  }
+
   Map<String, Challenge> _mergeSeedDefaults({
     required Map<String, Challenge> seedChallenges,
     required Map<String, Challenge> editableChallenges,
+    required Set<String> previouslySeenSeedIds,
   }) {
     final merged = Map<String, Challenge>.from(editableChallenges);
 
     for (final seedEntry in seedChallenges.entries) {
       final editableChallenge = merged[seedEntry.key];
       if (editableChallenge == null) {
+        if (previouslySeenSeedIds.contains(seedEntry.key)) {
+          // The user deleted or renamed this challenge away; respect that
+          // instead of resurrecting it from the seed data.
+          continue;
+        }
         merged[seedEntry.key] = seedEntry.value;
         continue;
       }
@@ -86,13 +128,27 @@ class ChallengeRepository {
     return merged;
   }
 
-  Future<void> _writeChallenges(
+  Future<void> _writeChallengeFile(
     File file,
     Iterable<Challenge> challenges,
+    Set<String> seenSeedIds,
   ) async {
     const encoder = JsonEncoder.withIndent('  ');
     await file.writeAsString(
-      encoder.convert(challenges.map((c) => c.toJson()).toList()),
+      encoder.convert({
+        'seenSeedIds': seenSeedIds.toList(),
+        'challenges': challenges.map((c) => c.toJson()).toList(),
+      }),
     );
   }
+}
+
+class _SavedChallengeFile {
+  final Map<String, Challenge> challenges;
+  final Set<String> seenSeedIds;
+
+  const _SavedChallengeFile({
+    required this.challenges,
+    required this.seenSeedIds,
+  });
 }
