@@ -189,6 +189,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
         label: challenge.copyWith(checklist: updatedChecklist),
       };
     });
+    await AppSettings.playSystemSoundIfEnabled();
     await _saveChallengeData();
   }
 

@@ -333,6 +333,7 @@ class _StartScreenState extends State<StartScreen>
       };
       _syncNodeCompletionFromChecklist(label);
     });
+    await AppSettings.playSystemSoundIfEnabled();
     await _saveChallengeData();
   }
 

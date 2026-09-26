@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppSettingKeys {
@@ -33,6 +34,16 @@ class AppSettings {
     backgroundDarkness.value = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(AppSettingKeys.backgroundDarkness, value);
+  }
+
+  /// Plays the platform's UI click sound (no custom audio asset needed)
+  /// when the System Sounds setting is enabled. Call this from places like
+  /// checking off a checklist item, where a little audio feedback helps.
+  static Future<void> playSystemSoundIfEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool(AppSettingKeys.systemSounds) ?? true;
+    if (!enabled) return;
+    await SystemSound.play(SystemSoundType.click);
   }
 }
 

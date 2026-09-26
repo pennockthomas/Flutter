@@ -159,7 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _infoTile("Progress Register", "Enabled"),
                           _infoTile("Developer Editor", "Local seed editor"),
                           _infoTile("Export / Import", "Coming later"),
-                          _infoTile("Reset Progress", "Coming later"),
+                          _infoTile("Reset Progress", "Available in Start"),
                         ],
                       ),
                       _buildSettingsTile(
