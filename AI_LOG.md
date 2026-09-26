@@ -99,6 +99,12 @@ Verified with `flutter analyze`/`flutter test`, and visually on the simulator: P
 Files: `lib/glass_panel.dart` (new), `lib/profile_page.dart`, `lib/friends_page.dart`
 Commit: 3e471f7
 
+## 2026-09-26 — Decided to defer splitting up the God files
+
+Discussed splitting `start_page.dart`/`playground.dart` (finding #10) into smaller, more testable pieces (e.g. pulling the physics/layout math into a plain `NodeGraphController` class). Thomas's call, which I agreed with: leave it for now. It's a maintainability smell, not a bug, and refactoring the app's most animation-heavy code for a payoff that only matters with frequent future changes there isn't worth the regression risk right now. See the note on item 10 below for when to revisit.
+
+No commit — no code changed.
+
 ---
 
 ## Known issues not yet fixed
@@ -114,7 +120,7 @@ From a full-codebase review, roughly ranked by impact. Struck-through items are 
 7. ~~`test/widget_test.dart` was still the unmodified Flutter counter-app template; no real test coverage~~ — fixed 2026-09-26 (repository/store unit tests added; UI-level coverage is still thin).
 8. ~~Progress-calculation logic duplicated across `main.dart`, `profile_page.dart`, `progress_register_page.dart`~~ — fixed 2026-09-26 (moved onto `ChallengeStore`).
 9. ~~Glass/blur panel widget reimplemented separately in `profile_page.dart` and `friends_page.dart`~~ — fixed 2026-09-26 (extracted to `lib/glass_panel.dart`). Other inlined `BackdropFilter` uses elsewhere are a different visual pattern (bubbles/sheets), left alone deliberately.
-10. `start_page.dart` and `playground.dart` are 1000+ line God files, each mixing physics/layout, CRUD, dialogs, and rendering in one `State` class.
+10. `start_page.dart` and `playground.dart` are 1000+ line God files, each mixing physics/layout, CRUD, dialogs, and rendering in one `State` class. **Deliberately deferred 2026-09-26** (Thomas's call, agreed): this is a maintainability smell, not a bug — it doesn't affect users or cause the kind of failures the other fixes here addressed, and untangling it means touching the riskiest, most animation-heavy code in the app (physics ticker + camera transforms + gestures) for a payoff that only matters if there's frequent future work in these files. Revisit if a specific future change to the node graph starts feeling harder than it should because of file size — don't refactor preemptively.
 11. Per-frame O(n²) physics simulation in `start_page.dart` runs 60x/sec even at rest, rebuilding several `BackdropFilter`s — will degrade as the tree grows.
 12. ~~Dead orphaned `main()` in `start_page.dart`~~ — fixed 2026-09-26.
 13. "Thomas Pennock" / "TP" is hardcoded across four files instead of a single user model — will need to change if real accounts are ever added.
