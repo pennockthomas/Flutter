@@ -138,6 +138,30 @@ Verified with `flutter analyze`/`flutter test`, and live on the simulator: toggl
 Files: `assets/sounds/background.wav` (new), `assets/sounds/Finished.wav` (new), `assets/sounds/new unlock.wav` (new), `lib/background_music.dart` (new), `test/challenge_model_test.dart` (new), `lib/app_settings.dart`, `lib/challenge_model.dart`, `lib/main.dart`, `lib/playground.dart`, `lib/progress_register_page.dart`, `lib/settings.dart`, `lib/start_page.dart`
 Commit: 4dca764
 
+## 2026-09-26 — Export/Import Progress and Reduce Motion (Phase 1 continued)
+
+Added `share_plus` and `file_picker` as dependencies. `ChallengeRepository.importFromJson()` validates a JSON string (accepts both the current and legacy save formats, rejects anything else without touching existing data) before writing it as the new save file; `ChallengeStore.importFromJson()`/`.editableFilePath()` wrap that for the UI and reload/notify on success. Settings > Progress & Data now has working "Export Progress" (native iOS share sheet) and "Import Progress" (native document picker) actions.
+
+Hit a real bug while verifying on the simulator: `Share.shareXFiles` kept throwing `PlatformException(sharePositionOrigin: argument must be set...)`. First attempt (`context.findRenderObject()?.localToGlobal(Offset.zero)`) still failed with a *negative* x-offset - because the button lives on `SettingsScreen`, which is the route sitting *underneath* the pushed `SubSettingsPage`, and iOS's parallax back-transition keeps the covered route shifted left (~1/3 screen width) the whole time it's covered, not just mid-animation. Fixed by anchoring the rect at the screen's own local origin (`Rect.fromLTWH(0, 0, width, height)`) instead of trying to compute a global position at all.
+
+Added `AppSettings.reducedMotion` (a `ValueNotifier<bool>`, same pattern as `backgroundDarkness`), loaded at startup and updated live when the Settings toggle flips. Wired it into the two places that actually animate a transition: `start_page.dart`'s camera centering (the zoom/pan when opening or closing a node - the most visible "motion" in the app) now snaps instantly instead of tweening, and `main.dart`'s Home welcome-card slide/resize does the same. Deliberately left `playground.dart` and the continuous physics simulation alone: `playground.dart` has no live animation to gate (its `animateBack()` is dead code, never called), and the physics loop itself is the bigger, separately-flagged risk (see item 11) - not something to fold into this pass.
+
+Verified with `flutter analyze`/`flutter test` (18 tests, all passing, including 4 new `importFromJson` tests) and thoroughly on the simulator: Export Progress produced the real iOS share sheet with a correctly-sized/named file, saving it to Files worked, and Import Progress opened the real document picker without crashing.
+
+Files: `ios/Podfile.lock`, `pubspec.yaml`, `pubspec.lock`, platform-generated plugin registrants (linux/macos/windows), `lib/app_settings.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/main.dart`, `lib/settings.dart`, `lib/start_page.dart`, `test/challenge_repository_test.dart`
+Commit: b76d4bc
+
+---
+
+## Roadmap status ("make the whole app function as advertised")
+
+Agreed 2026-09-26. Phase 3 (real accounts + Friends/Sharing backend) needs its own explicit go-ahead before starting - it's a different order of magnitude (new backend, auth, privacy decisions), not a line item.
+
+- Phase 0 (cleanup): done.
+- Phase 1 (local features): System Sounds ✅, Background Music ✅, Export/Import Progress ✅, Reduce Motion ✅ (camera/transition animations only, not the physics simulation - see item 11), **High Contrast Text — not started**. Note: High Contrast Text needs a real app-wide theme first (colors are hardcoded per-widget across every screen, not centralized), so it's meaningfully bigger than the others in this phase - check in on scope before starting rather than doing a partial version.
+- Phase 2 (local notifications - Daily Reminders, Milestone Alerts via `flutter_local_notifications`): not started.
+- Phase 3 (real accounts + Friends/Sharing backend): not started, deliberately deferred pending a separate decision.
+
 ---
 
 ## Known issues not yet fixed
