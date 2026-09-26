@@ -218,7 +218,7 @@ Added `--dart-define=TEST_DAILY_REMINDER=true`: in debug builds, the existing da
 Built and launched on the iPhone 17 Pro simulator; the scheduling call completed and logged 20:13:36 Amsterdam time. `flutter analyze lib/notifications.dart` and `git diff --check` passed. Banner delivery and cancellation have not yet been visually verified: Simulator was unavailable through the UI tools, so Thomas was asked to press Home and observe delivery.
 
 Files: `lib/notifications.dart`, `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -227,7 +227,7 @@ Commit: not committed.
 Thomas confirmed the two-minute reminder worked and supplied a screenshot showing the EcoSteps notification with the expected reminder text on the simulator Home screen. This verifies actual background delivery, beyond the earlier successful scheduling call. Cancellation and next-day repetition remain unverified. Relaunched without `TEST_DAILY_REMINDER` to return to the normal 6pm scheduling path; the debug test option remains available for future checks.
 
 Files: `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -236,7 +236,7 @@ Commit: not committed.
 Created a prioritized checklist covering the completeness review, data protection, honest feature presentation, tree performance, notifications, usability, verification, and the deferred social/backend roadmap. Distinguished confirmed reminder delivery from outstanding cancellation/repetition checks and preserved the decisions to defer broad file splitting and remove High Contrast Text. Additional hardening items are proposed work rather than claims of reproduced bugs.
 
 Files: `TODO.md` (new), `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -249,7 +249,7 @@ Progress import now explains that it will replace challenge/checklist progress a
 Imports are now validated before the confirmation is shown: challenge IDs must be unique and non-empty, `Start` must exist, every unlock must resolve exactly once, and unlock relationships cannot contain a cycle. Added repository coverage for backup availability, restoring completed progress, duplicate IDs, missing references, and cycles. All 23 tests pass. Full `flutter analyze` reports 64 existing info-level deprecation/style notices under the current Flutter SDK and no errors or warnings; those notices were outside this focused change.
 
 Files: `lib/app_settings.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/friends_page.dart`, `lib/settings.dart`, `test/challenge_repository_test.dart`, `TODO.md`, `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -260,7 +260,7 @@ The rectangular viewport edge visibly sliced through glass cards and checklist r
 Verified with `flutter analyze --no-fatal-infos` (no errors or warnings; the same 64 existing info-level notices) and `flutter test` (all 23 tests pass). Visual tuning on the simulator is pending Thomas's review after relaunch.
 
 Files: `lib/fading_edge_scroll_view.dart` (new), `lib/settings.dart`, `lib/profile_page.dart`, `lib/progress_register_page.dart`, `lib/friends_page.dart`, `lib/playground.dart`, `lib/start_page.dart`, `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -271,7 +271,7 @@ Replaced the platform's full-width slide for in-app navigation with one shared E
 Verified with `flutter analyze --no-fatal-infos` (no errors or warnings; the same 64 existing info-level notices) and `flutter test` (all 23 tests pass). Visual tuning is pending Thomas's simulator review.
 
 Files: `lib/app_page_route.dart` (new), `lib/main.dart`, `lib/settings.dart`, `lib/profile_page.dart`, `lib/friends_page.dart`, `lib/start_page.dart`, `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -282,7 +282,7 @@ The challenge checklist screen previously rendered each task as its own clipped 
 Verified with `flutter analyze --no-fatal-infos` (no errors or warnings; 62 existing info-level notices) and `flutter test` (all 23 tests pass).
 
 Files: `lib/start_page.dart`, `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -295,7 +295,7 @@ This first version intentionally uses the complete ordered swap list. Filters, s
 Verified with focused `flutter analyze` (no issues), `git diff --check`, and the full test suite (all 23 tests pass).
 
 Files: `lib/quick_swipe_page.dart` (new), `lib/main.dart`, `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
@@ -306,7 +306,7 @@ Changed the single-card presentation into a visible pile: up to three upcoming s
 Verified with focused `flutter analyze` (no issues), `git diff --check`, and the full test suite (all 23 tests pass).
 
 Files: `lib/quick_swipe_page.dart`, `AI_LOG.md`
-Commit: not committed.
+Commit: 19ee8aa
 
 ---
 
