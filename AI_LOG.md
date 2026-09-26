@@ -158,7 +158,7 @@ Commit: b76d4bc
 Agreed 2026-09-26. Phase 3 (real accounts + Friends/Sharing backend) needs its own explicit go-ahead before starting - it's a different order of magnitude (new backend, auth, privacy decisions), not a line item.
 
 - Phase 0 (cleanup): done.
-- Phase 1 (local features): System Sounds ✅, Background Music ✅, Export/Import Progress ✅, Reduce Motion ✅ (camera/transition animations only, not the physics simulation - see item 11), **High Contrast Text — not started**. Note: High Contrast Text needs a real app-wide theme first (colors are hardcoded per-widget across every screen, not centralized), so it's meaningfully bigger than the others in this phase - check in on scope before starting rather than doing a partial version.
+- Phase 1 (local features): System Sounds ✅, Background Music ✅, Export/Import Progress ✅, Reduce Motion ✅ (camera/transition animations only, not the physics simulation - see item 11). High Contrast Text: **removed instead of built** - Thomas doesn't want it, and it would have needed a real app-wide theme first (colors are hardcoded per-widget across every screen) to do anything real. `AppSettingKeys.highContrastText` and its Settings toggle are gone; don't re-add without asking. Phase 1 is otherwise complete.
 - Phase 2 (local notifications - Daily Reminders, Milestone Alerts via `flutter_local_notifications`): not started.
 - Phase 3 (real accounts + Friends/Sharing backend): not started, deliberately deferred pending a separate decision.
 
