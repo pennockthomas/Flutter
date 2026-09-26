@@ -105,6 +105,15 @@ Discussed splitting `start_page.dart`/`playground.dart` (finding #10) into small
 
 No commit — no code changed.
 
+## 2026-09-26 — Extracted hardcoded user identity into AppUser
+
+"Thomas Pennock"/"TP" were hardcoded as string literals in `main.dart`, `settings.dart`, `profile_page.dart` (×2), and `start_page.dart`, plus a first-name-only "Welcome back, Thomas" greeting in `main.dart` that hadn't been caught by earlier grep passes (it doesn't contain "Pennock" or "TP"). Added `lib/app_user.dart` with `AppUser.name`/`.firstName`/`.initials`, and pointed every call site at it. Unlike #10, this one was basically free — a pure string-constant extraction with no behavior change — so it was worth doing even though the payoff (only matters if a real accounts system gets added) is speculative.
+
+Added `test/app_user_test.dart` for the `firstName`/`initials` derivation logic. Verified with `flutter analyze`/`flutter test` and visually on the simulator (Home's greeting/avatar and Profile's name/avatar render identically).
+
+Files: `lib/app_user.dart` (new), `test/app_user_test.dart` (new), `lib/main.dart`, `lib/settings.dart`, `lib/profile_page.dart`, `lib/start_page.dart`
+Commit: 62111e0
+
 ---
 
 ## Known issues not yet fixed
@@ -123,4 +132,4 @@ From a full-codebase review, roughly ranked by impact. Struck-through items are 
 10. `start_page.dart` and `playground.dart` are 1000+ line God files, each mixing physics/layout, CRUD, dialogs, and rendering in one `State` class. **Deliberately deferred 2026-09-26** (Thomas's call, agreed): this is a maintainability smell, not a bug — it doesn't affect users or cause the kind of failures the other fixes here addressed, and untangling it means touching the riskiest, most animation-heavy code in the app (physics ticker + camera transforms + gestures) for a payoff that only matters if there's frequent future work in these files. Revisit if a specific future change to the node graph starts feeling harder than it should because of file size — don't refactor preemptively.
 11. Per-frame O(n²) physics simulation in `start_page.dart` runs 60x/sec even at rest, rebuilding several `BackdropFilter`s — will degrade as the tree grows.
 12. ~~Dead orphaned `main()` in `start_page.dart`~~ — fixed 2026-09-26.
-13. "Thomas Pennock" / "TP" is hardcoded across four files instead of a single user model — will need to change if real accounts are ever added.
+13. ~~"Thomas Pennock" / "TP" hardcoded across four files~~ — fixed 2026-09-26 (extracted to `lib/app_user.dart`).
