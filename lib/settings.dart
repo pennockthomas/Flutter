@@ -185,11 +185,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             defaultValue: false,
                             onChanged: AppSettings.setReducedMotion,
                           ),
-                          const _SettingSwitchTile(
-                            label: "High Contrast Text",
-                            preferenceKey: AppSettingKeys.highContrastText,
-                            defaultValue: false,
-                          ),
                           _infoTile("Current Theme", "Glass Forest"),
                         ],
                       ),

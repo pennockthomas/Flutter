@@ -15,7 +15,6 @@ class AppSettingKeys {
   static const shareCategoryProgress = 'settings.share_category_progress';
   static const shareChecklistItems = 'settings.share_checklist_items';
   static const reducedMotion = 'settings.reduced_motion';
-  static const highContrastText = 'settings.high_contrast_text';
 }
 
 class AppSounds {
