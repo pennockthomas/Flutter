@@ -1,0 +1,70 @@
+# AI Log
+
+Running history of AI-assisted work on EcoSteps: what changed, why, and what's still open. Newest entries at the bottom. Read this file in full before starting new work in this repo. When you finish something worth remembering (a fix, a refactor, a decision), append a new entry in the same format — don't edit past entries except to update the "Known issues" list.
+
+---
+
+## 2026-09-26 — iOS deployment target bumped to 15.0
+
+Xcode's current toolchain no longer supports the 13.0 target the project was pinned to, which blocked all iOS Simulator builds. Updated `ios/Podfile`, `ios/Podfile.lock`, and `ios/Runner.xcodeproj/project.pbxproj`, and added a `post_install` hook in the Podfile forcing `IPHONEOS_DEPLOYMENT_TARGET = 15.0` on every CocoaPods target (individual pods were overriding the project-level setting).
+
+Files: `ios/Podfile`, `ios/Podfile.lock`, `ios/Runner.xcodeproj/project.pbxproj`
+Commit: 886ba79
+
+## 2026-09-26 — Fixed deleted/renamed challenges resurrecting; safer progress reset
+
+`ChallengeRepository.loadChallenges()` used to re-add any seed challenge missing from the saved file, so deleting or renaming a bubble in Playground silently reverted on the next app launch. Added `seenSeedIds` tracking (persisted alongside the challenge data) so a seed challenge that's already been shown once is never resurrected after the user removes it — only genuinely new seed entries get added automatically. Verified by deleting a challenge at the file level and confirming a full relaunch didn't bring it back.
+
+Also fixed the tree screen's "Reset" button (`start_page.dart`): it used to call `prefs.clear()` with no confirmation, which wiped unrelated Settings toggles while leaving checklist completion untouched (an inconsistent half-reset) and never refreshed the UI. It now shows a confirmation dialog, only clears `progress_*`/`unlocked_nodes` keys, resets checklist completion in the same step, and reloads immediately.
+
+Files: `lib/challenge_repository.dart`, `lib/start_page.dart`
+Commit: 19877ff
+
+## 2026-09-26 — Startup Sound setting now respected
+
+`main.dart` had a comment explicitly admitting the Startup Sound toggle was ignored — the sound always played regardless of the switch in Settings. Wired `_playStartupSound()` to read `AppSettingKeys.startupSound` from `SharedPreferences` and skip playback when disabled.
+
+Note: most other Settings toggles (System Sounds, Background Music, Reduce Motion, High Contrast Text, Daily Reminders, Milestone Alerts, Friend Updates, Share Total/Category Progress, Share Checked Items) are still dead UI — they persist a value but nothing in the app reads it back, because the underlying features (sound effects, background music, local notifications, a sharing backend) don't exist yet. Wiring those up is feature work, not a bug fix — flagged here so it isn't mistaken for an oversight.
+
+Files: `lib/main.dart`
+Commit: f3b17d8
+
+## 2026-09-26 — Consistent error handling on challenge-data load
+
+`start_page.dart` and `playground.dart` wrapped `loadChallenges()` in try/catch; the HomeScreen (`main.dart`), `profile_page.dart`, and `progress_register_page.dart` didn't — so a corrupted `challenge_editor.json` crashed only some screens. All five now catch load failures the same way and degrade to an empty/loaded state instead of crashing. Verified by writing invalid JSON into the simulator's `challenge_editor.json` and confirming every screen (Home, Start, Progress Register) still rendered instead of showing a red error screen.
+
+Files: `lib/main.dart`, `lib/profile_page.dart`, `lib/progress_register_page.dart`
+Commit: e226a54
+
+## 2026-09-26 — Shared ChallengeStore (single source of truth for challenge data)
+
+Home, Start, Playground, Profile, and Progress Register each independently loaded and cached their own copy of the challenge data, so an edit made on one screen (e.g. checking off an item in Progress Register) wasn't reflected on another screen that was already open, until that screen happened to reload on its own.
+
+Added `lib/challenge_store.dart`: a `ChangeNotifier` singleton wrapping `ChallengeRepository`. Every screen now reads via `ChallengeStore.instance.ensureLoaded()`/`.challenges`, writes via `ChallengeStore.instance.save(...)`, and adds itself as a listener so it re-renders the instant any screen saves a change. `start_page.dart`'s listener also re-runs `_syncNodeCompletionFromChecklist` so the tree's completed-bubble highlighting stays correct without rebuilding the node graph/physics state.
+
+Side effect: `ChallengeRepository.loadChallenges()`'s seed-merge-and-rewrite now only runs once per app session (the first screen to touch the store) instead of once per screen — partially addresses the "repository rewrites the file on every read" finding too, though the repository method itself is unchanged.
+
+Verified live on the simulator: toggled a checklist item in Progress Register, then confirmed Home's welcome-card count and Profile's totals updated without navigating away or re-opening either screen.
+
+Files: `lib/challenge_store.dart` (new), `lib/main.dart`, `lib/playground.dart`, `lib/profile_page.dart`, `lib/progress_register_page.dart`, `lib/start_page.dart`
+Commit: e1e50f5
+
+---
+
+## Known issues not yet fixed
+
+From a full-codebase review, roughly ranked by impact. Struck-through items are resolved above.
+
+1. ~~Deleted/renamed challenges resurrect~~ — fixed 2026-09-26.
+2. ~~Reset button was destructive/inconsistent~~ — fixed 2026-09-26.
+3. Most Settings toggles are dead UI — see note above. Fixing this means building the underlying features (sound effects, music, notifications, sharing), not patching a bug.
+4. ~~Inconsistent error handling on data load~~ — fixed 2026-09-26.
+5. ~~No single source of truth for progress data~~ — fixed 2026-09-26.
+6. `ChallengeRepository.loadChallenges()` still always re-merges and rewrites the save file the first time it's called each session. Mitigated (not eliminated) by the shared store above.
+7. `test/widget_test.dart` is still the unmodified Flutter counter-app template — it references a `+` icon that doesn't exist in this app and would fail if run. There is no real test coverage.
+8. Progress-calculation logic (`_totalItems`/`_completedItems`/`_progress` folds) is duplicated across `main.dart`, `profile_page.dart`, and `progress_register_page.dart` instead of living in one place (e.g. on `ChallengeStore`).
+9. The glass/blur panel widget is reimplemented separately in `profile_page.dart`, `friends_page.dart`, and inlined ad hoc elsewhere.
+10. `start_page.dart` and `playground.dart` are 1000+ line God files, each mixing physics/layout, CRUD, dialogs, and rendering in one `State` class.
+11. Per-frame O(n²) physics simulation in `start_page.dart` runs 60x/sec even at rest, rebuilding several `BackdropFilter`s — will degrade as the tree grows.
+12. Dead orphaned `main()` in `start_page.dart` (line ~11), left over from standalone widget testing.
+13. "Thomas Pennock" / "TP" is hardcoded across four files instead of a single user model — will need to change if real accounts are ever added.
