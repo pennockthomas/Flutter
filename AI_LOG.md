@@ -178,6 +178,17 @@ Also moved the icon generator from the session scratchpad into `tool/generate_ap
 Files: `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated), `tool/generate_app_icon.py` (new), `tool/app_icon_master.png` (new)
 Commits: a03543d, 35f9859
 
+## 2026-09-26 — App icon: used the real eco_rounded glyph instead of a hand-drawn leaf
+
+Thomas's feedback: the hand-drawn leaf (two intersecting circles) read as a coffee bean, and asked whether the app icon could just use the same icon shown at startup instead. It can, exactly: found Flutter's own bundled `MaterialIcons-Regular.otf` at `$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/`, and looked up `Icons.eco_rounded`'s codepoint (`0xf6f2`) directly in the Flutter SDK source (`packages/flutter/lib/src/material/icons.dart`). Rewrote `tool/generate_app_icon.py` to render that exact glyph via Pillow's `ImageFont.truetype()` on the same background/glow as before, instead of approximating a leaf from primitives. This guarantees the app icon and the in-app splash icon are the literal same shape, not a lookalike.
+
+Also fixed a centering bug: icon fonts' em-square/baseline metrics don't line up with the glyph's actual visual bounds, so `anchor="mm"` alone left it visibly off-center. Now measures the drawn glyph's real bounding box via `textbbox()` first and shifts the draw position so the ink itself - not the font's box - is centered.
+
+Verified on the simulator via the Home button: unmistakably a leaf now, matching the splash screen precisely.
+
+Files: `tool/generate_app_icon.py`, `tool/app_icon_master.png`, `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated)
+Commit: 43af338
+
 ---
 
 ## Roadmap status ("make the whole app function as advertised")
