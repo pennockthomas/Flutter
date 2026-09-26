@@ -196,6 +196,19 @@ Thomas asked to preview a 5%-down shift before applying it - rendered a one-off 
 Files: `tool/generate_app_icon.py`, `tool/app_icon_master.png`, `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated)
 Commit: d438a75
 
+## 2026-09-26 — Phase 2: local notifications (Daily Reminders, Milestone Alerts)
+
+Added `flutter_local_notifications` + `timezone` + `flutter_timezone`. New `lib/notifications.dart` wraps the plugin: `syncDailyReminders()` reads the Daily Reminders setting, requests permission if needed, and schedules/cancels a daily repeating reminder at a fixed time (6pm - there's no UI yet to let the user pick a time; called at startup and whenever the Settings toggle changes). `showMilestoneAlert()` shows a one-off notification gated on the Milestone Alerts setting, wired into the same "challenge checklist just became fully complete" transition already used for the `Finished.wav` sound (all three sites: `start_page.dart`, `playground.dart`, `progress_register_page.dart`).
+
+Verified the permission flow works: the real iOS system dialog appeared automatically on first launch and was granted with no exceptions logged.
+
+Hit a scary startup hang partway through (white screen, stuck right after the native Xcode build step, before any Dart-side log line) that reproduced across several rebuilds - including one with the new `syncDailyReminders()` call at startup temporarily commented out, which ruled out my Dart code as the cause (an un-awaited fire-and-forget Future can't block the first frame anyway; a hang before any engine log line points at native startup). Turned out to be a stuck simulator process, unrelated to this change: `xcrun simctl shutdown`/`boot` on the device fixed it immediately, and the app now launches cleanly every time with the real code restored. Worth remembering: if a similar "stuck right after the native build, nothing in the log" hang shows up again, try a simulator reboot before assuming it's a code bug - this is at least the second time this exact session has hit that failure mode (see the earlier "Lost connection to device" notes) without any actual bug being at fault.
+
+Not yet done: no UI to customize the daily reminder's time (hardcoded 6pm), and Milestone Alerts only fires on "finished a whole challenge" - no alerts yet for other milestones (e.g. round-number total-progress thresholds).
+
+Files: `lib/notifications.dart` (new), `lib/main.dart`, `lib/settings.dart`, `lib/start_page.dart`, `lib/playground.dart`, `lib/progress_register_page.dart`, `pubspec.yaml`, `pubspec.lock`, `ios/Podfile.lock`, `macos/Flutter/GeneratedPluginRegistrant.swift`
+Commit: 6cc1f41
+
 ---
 
 ## Roadmap ("make the whole app function as advertised, not just bug-free")
@@ -212,7 +225,7 @@ Agreed 2026-09-26, after the initial bug-fix/code-quality pass was done. The goa
 - High Contrast Text — **removed instead of built.** Thomas doesn't want it, and it would have needed a real app-wide theme first (colors are hardcoded per-widget across every screen) to do anything real. `AppSettingKeys.highContrastText` and its toggle are gone from Settings; don't re-add without asking.
 - Phase 1 is complete.
 
-**Phase 2 — Local notifications (~4–6 hrs).** Daily Reminders + Milestone Alerts via `flutter_local_notifications`: needs an iOS permission-request flow, scheduling logic (daily repeating + threshold-triggered one-offs), and wiring to the two existing Notifications toggles. **Not started.**
+**Phase 2 — Local notifications (~4–6 hrs).** Daily Reminders + Milestone Alerts via `flutter_local_notifications`. ✅ Done - permission flow, daily scheduling, and milestone alerts on challenge completion. Not customizable yet (fixed 6pm reminder time, milestones only fire on "finished a whole challenge") but functionally complete.
 
 **Phase 3 — Real accounts + Friends/Sharing backend (3–5 days, a different order of magnitude).** Choosing a backend (Firebase/Supabase is the fast path), building sign-up/sign-in, a real data model for friends + shared progress, an add-friend/invite flow, replacing the 3 hardcoded mock friends in `friends_page.dart`, and wiring the three "Share X Progress" toggles to something real. Cloud Sync (Privacy & Security) piggybacks on the same backend. **Not started - needs its own explicit go-ahead before starting, since it changes the app from "local personal tool" to "has a backend and other people's data" (hosting, privacy, cost).**
 
