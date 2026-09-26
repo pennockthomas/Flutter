@@ -87,4 +87,30 @@ void main() {
     final persisted = await ChallengeRepository().loadChallenges();
     expect(persisted['Kitchen']!.checklist.first.isCompleted, isTrue);
   });
+
+  test('totalItems/completedItems/progress reflect the current challenges',
+      () async {
+    final challenges = await ChallengeStore.instance.ensureLoaded();
+    final expectedTotal = challenges.values
+        .fold<int>(0, (total, c) => total + c.checklist.length);
+
+    expect(ChallengeStore.instance.totalItems, expectedTotal);
+    expect(ChallengeStore.instance.completedItems, 0);
+    expect(ChallengeStore.instance.progress, 0);
+
+    final kitchen = challenges['Kitchen']!;
+    final updated = {
+      ...challenges,
+      'Kitchen': kitchen.copyWith(
+        checklist: [
+          kitchen.checklist.first.copyWith(isCompleted: true),
+          ...kitchen.checklist.skip(1),
+        ],
+      ),
+    };
+    await ChallengeStore.instance.save(updated);
+
+    expect(ChallengeStore.instance.completedItems, 1);
+    expect(ChallengeStore.instance.progress, 1 / expectedTotal);
+  });
 }

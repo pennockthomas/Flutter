@@ -8,9 +8,6 @@ import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
 
-void main() =>
-    runApp(MaterialApp(debugShowCheckedModeBanner: false, home: StartScreen()));
-
 enum NodeStatus { available, completed }
 
 class Node {

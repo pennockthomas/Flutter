@@ -50,26 +50,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  int get _totalItems {
-    return _challenges.values.fold(
-      0,
-      (total, challenge) => total + challenge.checklist.length,
-    );
-  }
-
-  int get _completedItems {
-    return _challenges.values.fold(
-      0,
-      (total, challenge) =>
-          total + challenge.checklist.where((item) => item.isCompleted).length,
-    );
-  }
-
-  double get _progress {
-    if (_totalItems == 0) return 0;
-    return _completedItems / _totalItems;
-  }
-
   List<_CategoryProgress> get _categoryProgress {
     final start = _challenges['Start'];
     if (start == null) return [];
@@ -226,7 +206,7 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Row(
             children: [
-              _ProgressAvatar(progress: _progress, size: 82),
+              _ProgressAvatar(progress: ChallengeStore.instance.progress, size: 82),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -266,7 +246,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               Text(
-                '$_completedItems/$_totalItems',
+                '${ChallengeStore.instance.completedItems}/${ChallengeStore.instance.totalItems}',
                 style: const TextStyle(
                   color: Colors.greenAccent,
                   fontWeight: FontWeight.bold,
@@ -276,7 +256,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 8),
           LinearProgressIndicator(
-            value: _progress,
+            value: ChallengeStore.instance.progress,
             minHeight: 6,
             backgroundColor: Colors.white12,
             color: Colors.greenAccent,

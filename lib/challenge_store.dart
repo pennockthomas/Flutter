@@ -20,6 +20,22 @@ class ChallengeStore extends ChangeNotifier {
 
   Map<String, Challenge> get challenges => _challenges;
 
+  int get totalItems => _challenges.values.fold(
+        0,
+        (total, challenge) => total + challenge.checklist.length,
+      );
+
+  int get completedItems => _challenges.values.fold(
+        0,
+        (total, challenge) =>
+            total + challenge.checklist.where((item) => item.isCompleted).length,
+      );
+
+  double get progress {
+    final total = totalItems;
+    return total == 0 ? 0 : completedItems / total;
+  }
+
   /// Returns the current challenges, loading them from disk only the first
   /// time this is called in the app's lifetime.
   Future<Map<String, Challenge>> ensureLoaded() async {

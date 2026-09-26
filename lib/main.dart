@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_settings.dart';
-import 'challenge_model.dart';
 import 'challenge_store.dart';
 import 'playground.dart';
 import 'profile_page.dart';
@@ -222,8 +221,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _showWelcomeCard = true;
-  int _completedItems = 0;
-  int _totalItems = 0;
 
   @override
   void initState() {
@@ -244,34 +241,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onChallengesChanged() {
     if (!mounted) return;
-    _updateCounts(ChallengeStore.instance.challenges);
+    setState(() {});
   }
 
   Future<void> _loadProgress() async {
     try {
-      final challenges = await ChallengeStore.instance.ensureLoaded();
+      await ChallengeStore.instance.ensureLoaded();
       if (!mounted) return;
-      _updateCounts(challenges);
+      setState(() {});
     } catch (e) {
       // Keep showing zeroed progress rather than crashing the home screen.
     }
-  }
-
-  void _updateCounts(Map<String, Challenge> challenges) {
-    final totalItems = challenges.values.fold(
-      0,
-      (total, challenge) => total + challenge.checklist.length,
-    );
-    final completedItems = challenges.values.fold(
-      0,
-      (total, challenge) =>
-          total + challenge.checklist.where((item) => item.isCompleted).length,
-    );
-
-    setState(() {
-      _completedItems = completedItems;
-      _totalItems = totalItems;
-    });
   }
 
   Future<void> _openPage(Widget page) async {
@@ -279,11 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(builder: (context) => page),
     );
-  }
-
-  double get _progress {
-    if (_totalItems == 0) return 0;
-    return _completedItems / _totalItems;
   }
 
   @override
@@ -297,9 +272,9 @@ class _HomeScreenState extends State<HomeScreen> {
           const AppBackgroundOverlay(fallbackDarkness: 0.2),
           _ProfileWelcomeButton(
             showWelcomeCard: _showWelcomeCard,
-            completedItems: _completedItems,
-            totalItems: _totalItems,
-            progress: _progress,
+            completedItems: ChallengeStore.instance.completedItems,
+            totalItems: ChallengeStore.instance.totalItems,
+            progress: ChallengeStore.instance.progress,
             onTap: () => _openPage(const ProfilePage()),
           ),
           Center(

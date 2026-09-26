@@ -95,26 +95,6 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
     return rows;
   }
 
-  int get _totalItems {
-    return _challenges.values.fold(
-      0,
-      (total, challenge) => total + challenge.checklist.length,
-    );
-  }
-
-  int get _completedItems {
-    return _challenges.values.fold(
-      0,
-      (total, challenge) =>
-          total + challenge.checklist.where((item) => item.isCompleted).length,
-    );
-  }
-
-  double get _progress {
-    if (_totalItems == 0) return 0;
-    return _completedItems / _totalItems;
-  }
-
   bool _matchesQuery(Challenge challenge, ChecklistItem item) {
     if (_query.isEmpty) return true;
 
@@ -287,7 +267,7 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
                     ),
                   ),
                   Text(
-                    '$_completedItems/$_totalItems',
+                    '${ChallengeStore.instance.completedItems}/${ChallengeStore.instance.totalItems}',
                     style: const TextStyle(
                       color: Colors.greenAccent,
                       fontWeight: FontWeight.bold,
@@ -297,7 +277,7 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
-                value: _progress,
+                value: ChallengeStore.instance.progress,
                 minHeight: 6,
                 backgroundColor: Colors.white12,
                 color: Colors.greenAccent,
