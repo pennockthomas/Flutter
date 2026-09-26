@@ -49,6 +49,25 @@ Verified live on the simulator: toggled a checklist item in Progress Register, t
 Files: `lib/challenge_store.dart` (new), `lib/main.dart`, `lib/playground.dart`, `lib/profile_page.dart`, `lib/progress_register_page.dart`, `lib/start_page.dart`
 Commit: e1e50f5
 
+## 2026-09-26 — Added AI_LOG.md and CLAUDE.md
+
+This file, and the `CLAUDE.md` that points to it. `CLAUDE.md` is auto-loaded by Claude Code at the start of every session in this repo, so reading this log first is no longer optional-by-convention.
+
+Commit: 68fcdb5
+
+## 2026-09-26 — Real test coverage for ChallengeRepository and ChallengeStore
+
+`test/widget_test.dart` was still the unmodified Flutter counter-app template — it tested a `+` icon that doesn't exist in this app and would have failed if anyone ran `flutter test`. The project had zero real coverage.
+
+Added `test/challenge_repository_test.dart` and `test/challenge_store_test.dart`, using a hand-rolled `_FakePathProviderPlatform` (extends `PathProviderPlatform`, overrides `getApplicationDocumentsPath()`) so tests run against a `Directory.systemTemp` temp dir instead of a real device/simulator. Covers: seeding from the bundled asset, checklist completion surviving a reload, the delete/rename-doesn't-resurrect fix from earlier today, the legacy bare-list save format, and `ChallengeStore`'s cache/reload/notify contract. Replaced the stale counter test in `widget_test.dart` with a real (if minimal) test of `GlassButton`.
+
+Sanity-checked that the new repository tests actually catch the bug: temporarily swapped in the pre-fix `challenge_repository.dart` (via `git show 886ba79:...`), confirmed the two resurrection tests failed with the expected assertion errors, then restored the fix and confirmed all 8 tests passed again.
+
+Added `path_provider_platform_interface` as an explicit dev dependency (was previously only resolvable transitively through `path_provider`) so the fake platform import doesn't silently break if `path_provider`'s dependency graph changes.
+
+Files: `test/challenge_repository_test.dart` (new), `test/challenge_store_test.dart` (new), `test/widget_test.dart`, `pubspec.yaml`, `pubspec.lock`
+Commit: 2902680
+
 ---
 
 ## Known issues not yet fixed
@@ -61,7 +80,7 @@ From a full-codebase review, roughly ranked by impact. Struck-through items are 
 4. ~~Inconsistent error handling on data load~~ — fixed 2026-09-26.
 5. ~~No single source of truth for progress data~~ — fixed 2026-09-26.
 6. `ChallengeRepository.loadChallenges()` still always re-merges and rewrites the save file the first time it's called each session. Mitigated (not eliminated) by the shared store above.
-7. `test/widget_test.dart` is still the unmodified Flutter counter-app template — it references a `+` icon that doesn't exist in this app and would fail if run. There is no real test coverage.
+7. ~~`test/widget_test.dart` was still the unmodified Flutter counter-app template; no real test coverage~~ — fixed 2026-09-26 (repository/store unit tests added; UI-level coverage is still thin).
 8. Progress-calculation logic (`_totalItems`/`_completedItems`/`_progress` folds) is duplicated across `main.dart`, `profile_page.dart`, and `progress_register_page.dart` instead of living in one place (e.g. on `ChallengeStore`).
 9. The glass/blur panel widget is reimplemented separately in `profile_page.dart`, `friends_page.dart`, and inlined ad hoc elsewhere.
 10. `start_page.dart` and `playground.dart` are 1000+ line God files, each mixing physics/layout, CRUD, dialogs, and rendering in one `State` class.
