@@ -125,6 +125,19 @@ Verified with `flutter analyze`/`flutter test` and on the simulator: toggling a 
 Files: `lib/app_settings.dart`, `lib/playground.dart`, `lib/progress_register_page.dart`, `lib/settings.dart`, `lib/start_page.dart`
 Commit: 6b0a2a9
 
+## 2026-09-26 — Background Music + real sound effects (Phase 1 continued)
+
+Thomas added three audio assets: `assets/sounds/background.wav`, `Finished.wav`, `new unlock.wav`.
+
+Added `lib/background_music.dart` (`BackgroundMusicController`, a singleton so navigating screens doesn't restart/duplicate playback): loops `background.wav`, synced with the Background Music toggle (applies immediately when flipped in Settings via a new `onChanged` callback on `_SettingSwitchTile`, not just on next app launch), and paused/resumed via a `WidgetsBindingObserver` on `HomeScreen` (which stays mounted for the whole session) when the app backgrounds/foregrounds.
+
+Added `Challenge.isFullyCompleted` to the model and used it in all three checklist-toggle call sites (`start_page.dart`, `playground.dart`, `progress_register_page.dart`): play `Finished.wav` instead of the plain system click specifically on the transition from incomplete to fully-complete, otherwise the plain click. `new unlock.wav` plays in `start_page.dart`'s `_spawnNextTier` when a tier is genuinely unlocked (not when restoring previously-unlocked state on app load). Both effects route through a new `AppSettings.playSoundEffectIfEnabled()`, gated on the same System Sounds toggle as the click sound.
+
+Verified with `flutter analyze`/`flutter test`, and live on the simulator: toggling Background Music on/off produced no errors in the logs, and checklist toggling (including a completion transition) fired with no exceptions. Didn't verify the unlock sound audibly on-device — the node-graph canvas's continuous physics drift (see finding #11) made precise repeated tapping there too unreliable to chase further; the code path is identical to the already-verified sound-effect mechanism, just a different trigger point.
+
+Files: `assets/sounds/background.wav` (new), `assets/sounds/Finished.wav` (new), `assets/sounds/new unlock.wav` (new), `lib/background_music.dart` (new), `test/challenge_model_test.dart` (new), `lib/app_settings.dart`, `lib/challenge_model.dart`, `lib/main.dart`, `lib/playground.dart`, `lib/progress_register_page.dart`, `lib/settings.dart`, `lib/start_page.dart`
+Commit: 4dca764
+
 ---
 
 ## Known issues not yet fixed
