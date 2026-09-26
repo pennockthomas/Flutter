@@ -189,6 +189,13 @@ Verified on the simulator via the Home button: unmistakably a leaf now, matching
 Files: `tool/generate_app_icon.py`, `tool/app_icon_master.png`, `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated)
 Commit: 43af338
 
+## 2026-09-26 — Shifted the icon's leaf 5% down
+
+Thomas asked to preview a 5%-down shift before applying it - rendered a one-off preview (not touching the shipped assets) and sent it over first. Once approved, added a `VERTICAL_SHIFT` constant to `tool/generate_app_icon.py` (applied after the existing true-ink centering) rather than hacking the offset in one-off, so nudging it again later is a one-line change. Verified on the simulator via the Home button.
+
+Files: `tool/generate_app_icon.py`, `tool/app_icon_master.png`, `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png` (all 15 regenerated)
+Commit: d438a75
+
 ---
 
 ## Roadmap status ("make the whole app function as advertised")
