@@ -236,23 +236,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadProgress() async {
-    final challenges = await _challengeRepository.loadChallenges();
-    if (!mounted) return;
+    try {
+      final challenges = await _challengeRepository.loadChallenges();
+      if (!mounted) return;
 
-    final totalItems = challenges.values.fold(
-      0,
-      (total, challenge) => total + challenge.checklist.length,
-    );
-    final completedItems = challenges.values.fold(
-      0,
-      (total, challenge) =>
-          total + challenge.checklist.where((item) => item.isCompleted).length,
-    );
+      final totalItems = challenges.values.fold(
+        0,
+        (total, challenge) => total + challenge.checklist.length,
+      );
+      final completedItems = challenges.values.fold(
+        0,
+        (total, challenge) => total +
+            challenge.checklist.where((item) => item.isCompleted).length,
+      );
 
-    setState(() {
-      _completedItems = completedItems;
-      _totalItems = totalItems;
-    });
+      setState(() {
+        _completedItems = completedItems;
+        _totalItems = totalItems;
+      });
+    } catch (e) {
+      // Keep showing zeroed progress rather than crashing the home screen.
+    }
   }
 
   Future<void> _openPage(Widget page) async {

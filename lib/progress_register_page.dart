@@ -33,15 +33,20 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
   }
 
   Future<void> _loadChallenges() async {
-    final challenges = await _repository.loadChallenges();
-    if (!mounted) return;
+    try {
+      final challenges = await _repository.loadChallenges();
+      if (!mounted) return;
 
-    setState(() {
-      _challenges = challenges;
-      _parentByChallenge = _buildParentMap(challenges);
-      _orderedRows = _buildOrderedRows(challenges);
-      _isLoading = false;
-    });
+      setState(() {
+        _challenges = challenges;
+        _parentByChallenge = _buildParentMap(challenges);
+        _orderedRows = _buildOrderedRows(challenges);
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
   }
 
   Map<String, String> _buildParentMap(Map<String, Challenge> challenges) {

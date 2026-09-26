@@ -26,12 +26,17 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfile() async {
-    final challenges = await _repository.loadChallenges();
-    if (!mounted) return;
-    setState(() {
-      _challenges = challenges;
-      _isLoading = false;
-    });
+    try {
+      final challenges = await _repository.loadChallenges();
+      if (!mounted) return;
+      setState(() {
+        _challenges = challenges;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
   }
 
   int get _totalItems {
