@@ -25,6 +25,7 @@ GLOW = (24, 60, 45)      # subtle green glow layer, matches splash's box-shadow 
 ICON_COLOR = (105, 240, 174)  # 69F0AE - Colors.greenAccent, matches splash icon
 
 ECO_ROUNDED_CODEPOINT = 0xF6F2  # Icons.eco_rounded
+VERTICAL_SHIFT = 0.05  # fraction of SIZE to nudge the glyph down by
 
 FLUTTER_ROOT = os.environ.get("FLUTTER_ROOT", os.path.expanduser("~/Applications/flutter"))
 FONT_CANDIDATES = glob.glob(
@@ -60,7 +61,7 @@ left, top, right, bottom = probe.textbbox((cx, cy), glyph, font=font, anchor="mm
 glyph_cx, glyph_cy = (left + right) / 2, (top + bottom) / 2
 draw = ImageDraw.Draw(img)
 draw.text(
-    (cx + (cx - glyph_cx), cy + (cy - glyph_cy)),
+    (cx + (cx - glyph_cx), cy + (cy - glyph_cy) + SIZE * VERTICAL_SHIFT),
     glyph,
     font=font,
     fill=ICON_COLOR,
