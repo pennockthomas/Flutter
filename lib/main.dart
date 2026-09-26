@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app_settings.dart';
 import 'challenge_repository.dart';
 import 'playground.dart';
@@ -76,15 +77,15 @@ class _StartupScreenState extends State<StartupScreen>
 
   Future<void> _playStartupSound() async {
     try {
-      // We removed SharedPreferences entirely here so it ignores the toggle
+      final prefs = await SharedPreferences.getInstance();
+      final soundEnabled =
+          prefs.getBool(AppSettingKeys.startupSound) ?? true;
+      if (!soundEnabled) return;
 
       // A small delay ensures the audio engine is "awake" before the asset fires
       await Future.delayed(const Duration(milliseconds: 200));
 
-      // Direct play command
       await _audioPlayer.play(AssetSource('sounds/startup.mp3'));
-
-      debugPrint("Startup sound triggered (ignoring settings)");
     } catch (e) {
       debugPrint("Sound error: $e");
     }
