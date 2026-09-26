@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
+import 'app_user.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -99,10 +100,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Icons.person_outline,
                         "Account Profile",
                         [
-                          _infoTile("Name", "Thomas Pennock"),
+                          _infoTile("Name", AppUser.name),
                           _infoTile("Profile ID", "Local profile"),
                           _infoTile("Impact Level", "Getting Started"),
-                          _infoTile("Avatar", "Initials: TP"),
+                          _infoTile("Avatar", "Initials: ${AppUser.initials}"),
                         ],
                       ),
                       _buildSettingsTile(

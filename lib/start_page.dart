@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
+import 'app_user.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
 
@@ -51,7 +52,6 @@ class _StartScreenState extends State<StartScreen>
   bool isLoading = true;
   bool _showProgressMenu = false;
 
-  final String userName = "Thomas Pennock";
   Map<String, int> categories = {};
 
   final double maxZoom = 4.0;
@@ -528,7 +528,7 @@ class _StartScreenState extends State<StartScreen>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                userName,
+                                AppUser.name,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

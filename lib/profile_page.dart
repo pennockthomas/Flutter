@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
+import 'app_user.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
 import 'friends_page.dart';
@@ -211,9 +212,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Thomas Pennock',
-                      style: TextStyle(
+                    Text(
+                      AppUser.name,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -393,10 +394,10 @@ class _ProgressAvatar extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white24),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'TP',
-                style: TextStyle(
+                AppUser.initials,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,

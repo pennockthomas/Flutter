@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_settings.dart';
+import 'app_user.dart';
 import 'challenge_store.dart';
 import 'playground.dart';
 import 'profile_page.dart';
@@ -385,11 +386,11 @@ class _ProfileWelcomeButton extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Welcome back, Thomas',
+                                    Text(
+                                      'Welcome back, ${AppUser.firstName}',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -468,7 +469,7 @@ class _MenuProgressAvatar extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                'TP',
+                AppUser.initials,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: fontSize,
