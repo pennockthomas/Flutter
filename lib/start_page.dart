@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
 import 'challenge_model.dart';
-import 'challenge_repository.dart';
+import 'challenge_store.dart';
 
 void main() =>
     runApp(MaterialApp(debugShowCheckedModeBanner: false, home: StartScreen()));
@@ -53,7 +53,6 @@ class _StartScreenState extends State<StartScreen>
   Map<String, Challenge> challengeData = {};
   bool isLoading = true;
   bool _showProgressMenu = false;
-  final ChallengeRepository _challengeRepository = ChallengeRepository();
 
   final String userName = "Thomas Pennock";
   Map<String, int> categories = {};
@@ -75,7 +74,7 @@ class _StartScreenState extends State<StartScreen>
   }
 
   Future<void> _saveChallengeData() async {
-    await _challengeRepository.saveChallenges(challengeData.values);
+    await ChallengeStore.instance.save(challengeData);
   }
 
   void _syncNodeCompletionFromChecklist(String label) {
@@ -90,6 +89,7 @@ class _StartScreenState extends State<StartScreen>
   @override
   void initState() {
     super.initState();
+    ChallengeStore.instance.addListener(_onChallengesChanged);
     _loadInitialData();
 
     _transformController.value = Matrix4.identity()
@@ -115,9 +115,19 @@ class _StartScreenState extends State<StartScreen>
     });
   }
 
+  void _onChallengesChanged() {
+    if (!mounted || isLoading) return;
+    setState(() {
+      challengeData = ChallengeStore.instance.challenges;
+      for (final label in challengeData.keys) {
+        _syncNodeCompletionFromChecklist(label);
+      }
+    });
+  }
+
   Future<void> _loadInitialData() async {
     try {
-      final tempMap = await _challengeRepository.loadChallenges();
+      final tempMap = await ChallengeStore.instance.ensureLoaded();
 
       final prefs = await SharedPreferences.getInstance();
       List<String> mainTiers = tempMap["Start"]?.unlocks ?? [];
@@ -204,7 +214,7 @@ class _StartScreenState extends State<StartScreen>
               .toList(),
         ),
     };
-    await _challengeRepository.saveChallenges(resetChallenges.values);
+    await ChallengeStore.instance.save(resetChallenges);
 
     if (!mounted) return;
     setState(() => isLoading = true);
@@ -854,6 +864,7 @@ class _StartScreenState extends State<StartScreen>
 
   @override
   void dispose() {
+    ChallengeStore.instance.removeListener(_onChallengesChanged);
     _physicsTicker.dispose();
     _cameraController.dispose();
     _transformController.dispose();

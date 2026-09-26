@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
 import 'challenge_model.dart';
-import 'challenge_repository.dart';
+import 'challenge_store.dart';
 
 class ProgressRegisterPage extends StatefulWidget {
   const ProgressRegisterPage({super.key});
@@ -14,7 +14,6 @@ class ProgressRegisterPage extends StatefulWidget {
 }
 
 class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
-  final ChallengeRepository _repository = ChallengeRepository();
   final TextEditingController _searchController = TextEditingController();
 
   Map<String, Challenge> _challenges = {};
@@ -26,27 +25,36 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
   @override
   void initState() {
     super.initState();
+    ChallengeStore.instance.addListener(_onChallengesChanged);
     _loadChallenges();
     _searchController.addListener(() {
       setState(() => _query = _searchController.text.trim().toLowerCase());
     });
   }
 
+  void _onChallengesChanged() {
+    if (!mounted) return;
+    _applyChallenges(ChallengeStore.instance.challenges);
+  }
+
   Future<void> _loadChallenges() async {
     try {
-      final challenges = await _repository.loadChallenges();
+      final challenges = await ChallengeStore.instance.ensureLoaded();
       if (!mounted) return;
-
-      setState(() {
-        _challenges = challenges;
-        _parentByChallenge = _buildParentMap(challenges);
-        _orderedRows = _buildOrderedRows(challenges);
-        _isLoading = false;
-      });
+      _applyChallenges(challenges, isLoading: false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
+  }
+
+  void _applyChallenges(Map<String, Challenge> challenges, {bool? isLoading}) {
+    setState(() {
+      _challenges = challenges;
+      _parentByChallenge = _buildParentMap(challenges);
+      _orderedRows = _buildOrderedRows(challenges);
+      if (isLoading != null) _isLoading = isLoading;
+    });
   }
 
   Map<String, String> _buildParentMap(Map<String, Challenge> challenges) {
@@ -147,18 +155,17 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
       isCompleted: isCompleted,
     );
     final updatedChallenge = challenge.copyWith(checklist: updatedChecklist);
-
-    setState(() {
-      _challenges = {..._challenges, challenge.label: updatedChallenge};
-      _parentByChallenge = _buildParentMap(_challenges);
-      _orderedRows = _buildOrderedRows(_challenges);
-    });
-
-    await _repository.saveChallenges(_challenges.values);
+    final updatedChallenges = {
+      ..._challenges,
+      challenge.label: updatedChallenge,
+    };
+    _applyChallenges(updatedChallenges);
+    await ChallengeStore.instance.save(updatedChallenges);
   }
 
   @override
   void dispose() {
+    ChallengeStore.instance.removeListener(_onChallengesChanged);
     _searchController.dispose();
     super.dispose();
   }

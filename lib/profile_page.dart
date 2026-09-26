@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
 import 'challenge_model.dart';
-import 'challenge_repository.dart';
+import 'challenge_store.dart';
 import 'friends_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -15,19 +15,30 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final ChallengeRepository _repository = ChallengeRepository();
   Map<String, Challenge> _challenges = {};
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    ChallengeStore.instance.addListener(_onChallengesChanged);
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    ChallengeStore.instance.removeListener(_onChallengesChanged);
+    super.dispose();
+  }
+
+  void _onChallengesChanged() {
+    if (!mounted) return;
+    setState(() => _challenges = ChallengeStore.instance.challenges);
   }
 
   Future<void> _loadProfile() async {
     try {
-      final challenges = await _repository.loadChallenges();
+      final challenges = await ChallengeStore.instance.ensureLoaded();
       if (!mounted) return;
       setState(() {
         _challenges = challenges;

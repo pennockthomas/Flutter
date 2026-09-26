@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
 import 'challenge_model.dart';
-import 'challenge_repository.dart';
+import 'challenge_store.dart';
 
 // ---------------- PLAYGROUND SCREEN (FIXED LAYOUT) ----------------
 
@@ -29,7 +29,6 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
   final TransformationController _treeTransformController =
       TransformationController();
 
-  final ChallengeRepository _challengeRepository = ChallengeRepository();
   Map<String, Challenge> _challengeData = {};
   bool _isLoading = true;
 
@@ -40,12 +39,18 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
+    ChallengeStore.instance.addListener(_onChallengesChanged);
     _loadChallenges();
+  }
+
+  void _onChallengesChanged() {
+    if (!mounted) return;
+    setState(() => _challengeData = ChallengeStore.instance.challenges);
   }
 
   Future<void> _loadChallenges() async {
     try {
-      final challengeData = await _challengeRepository.loadChallenges();
+      final challengeData = await ChallengeStore.instance.ensureLoaded();
       if (!mounted) return;
       setState(() {
         _challengeData = challengeData;
@@ -70,7 +75,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
   }
 
   Future<void> _saveChallengeData() async {
-    await _challengeRepository.saveChallenges(_challengeData.values);
+    await ChallengeStore.instance.save(_challengeData);
   }
 
   String _uniqueChildLabel(String parentLabel) {
@@ -691,6 +696,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
 
   @override
   void dispose() {
+    ChallengeStore.instance.removeListener(_onChallengesChanged);
     controller.dispose();
     _treeTransformController.dispose();
     super.dispose();
