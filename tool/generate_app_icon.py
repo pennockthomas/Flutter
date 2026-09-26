@@ -1,32 +1,46 @@
-"""Generates the 1024x1024 master app icon (a green leaf on the same
-deep-eco-black/glow background as the splash screen).
+"""Generates the 1024x1024 master app icon: the same eco_rounded Material
+icon used on the splash screen, rendered directly from Flutter's own
+bundled MaterialIcons font, on the splash screen's deep-eco-black
+background with its green glow.
 
 Usage:
     python3 tool/generate_app_icon.py
     # then resize into ios/Runner/Assets.xcassets/AppIcon.appiconset/,
     # e.g. via `sips -z <px> <px> <file>` for each required size.
 
-No image-generation tool was available when this was first written, so the
-leaf is drawn from primitives: a vesica/lens (intersection of two offset
-circles) for the body, plus a vein+stem line rotated 90 degrees from the
-circles' axis so it crosses the leaf's pointed tips rather than running
-along the circles themselves.
+An earlier version of this hand-drew a leaf shape from circle
+intersections, but that read as a coffee bean rather than a leaf.
+Rendering the actual Icons.eco_rounded glyph (codepoint 0xf6f2 in
+MaterialIcons-Regular.otf - see packages/flutter/lib/src/material/icons.dart
+in the Flutter SDK) guarantees it matches the in-app icon exactly.
 """
 
-from PIL import Image, ImageDraw, ImageFilter, ImageChops
-import math
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+import glob
 import os
 
 SIZE = 1024
-BG = (10, 15, 10)          # 0A0F0A - deep eco-black, matches splash screen
-GLOW = (24, 60, 45)        # subtle green glow layer
-LEAF = (105, 240, 174)     # 69F0AE - Colors.greenAccent, matches splash icon
-VEIN = (8, 58, 38)         # darker green for the vein/stem
+BG = (10, 15, 10)        # 0A0F0A - deep eco-black, matches splash screen
+GLOW = (24, 60, 45)      # subtle green glow layer, matches splash's box-shadow halo
+ICON_COLOR = (105, 240, 174)  # 69F0AE - Colors.greenAccent, matches splash icon
+
+ECO_ROUNDED_CODEPOINT = 0xF6F2  # Icons.eco_rounded
+
+FLUTTER_ROOT = os.environ.get("FLUTTER_ROOT", os.path.expanduser("~/Applications/flutter"))
+FONT_CANDIDATES = glob.glob(
+    os.path.join(FLUTTER_ROOT, "bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf")
+)
+if not FONT_CANDIDATES:
+    raise SystemExit(
+        "Couldn't find MaterialIcons-Regular.otf under $FLUTTER_ROOT/bin/cache/artifacts/material_fonts/. "
+        "Set FLUTTER_ROOT or point FONT_CANDIDATES at your Flutter SDK."
+    )
+FONT_PATH = FONT_CANDIDATES[0]
 
 img = Image.new('RGB', (SIZE, SIZE), BG)
 cx, cy = SIZE // 2, SIZE // 2
 
-# Soft radial glow behind the leaf, like the splash screen's box-shadow halo.
+# Soft radial glow behind the icon, like the splash screen's box-shadow halo.
 glow_mask = Image.new('L', (SIZE, SIZE), 0)
 gd = ImageDraw.Draw(glow_mask)
 gr = SIZE * 0.40
@@ -35,55 +49,23 @@ glow_mask = glow_mask.filter(ImageFilter.GaussianBlur(SIZE * 0.09))
 glow_layer = Image.new('RGB', (SIZE, SIZE), GLOW)
 img = Image.composite(glow_layer, img, glow_mask)
 
-# Leaf: intersection of two circles (a vesica/lens) whose centers sit on a
-# diagonal, so the leaf's long axis is naturally tilted like a real leaf.
-angle = math.radians(40)  # tilt of the leaf's long axis from horizontal
-half_span = SIZE * 0.20
-r = SIZE * 0.40
-
-ax = cx - half_span * math.cos(angle)
-ay = cy - half_span * math.sin(angle)
-bx = cx + half_span * math.cos(angle)
-by = cy + half_span * math.sin(angle)
-
-mask_a = Image.new('L', (SIZE, SIZE), 0)
-mask_b = Image.new('L', (SIZE, SIZE), 0)
-ImageDraw.Draw(mask_a).ellipse([ax - r, ay - r, ax + r, ay + r], fill=255)
-ImageDraw.Draw(mask_b).ellipse([bx - r, by - r, bx + r, by + r], fill=255)
-leaf_mask = ImageChops.multiply(mask_a, mask_b)
-
-leaf_color = Image.new('RGB', (SIZE, SIZE), LEAF)
-img.paste(leaf_color, (0, 0), leaf_mask)
-
-# Vein across the leaf, plus a short stem past one end - both help it read
-# as a leaf rather than an abstract lens. Rotated 90 degrees from the
-# leaf's long (tip-to-tip) axis per feedback, so it now crosses the short
-# axis instead of running tip-to-tip.
-bbox = leaf_mask.getbbox()
-x0, y0, x1, y1 = bbox
-tip_a = (x1 - (x1 - x0) * 0.08, y1 - (y1 - y0) * 0.08)
-tip_b = (x0 + (x1 - x0) * 0.08, y0 + (y1 - y0) * 0.08)
-
-
-def rotate_point(px, py, ox, oy, angle_rad):
-    dx, dy = px - ox, py - oy
-    cos_a, sin_a = math.cos(angle_rad), math.sin(angle_rad)
-    return (ox + dx * cos_a - dy * sin_a, oy + dx * sin_a + dy * cos_a)
-
-
-angle_90 = math.radians(90)
-tip_a = rotate_point(tip_a[0], tip_a[1], cx, cy, angle_90)
-tip_b = rotate_point(tip_b[0], tip_b[1], cx, cy, angle_90)
-
+# The eco_rounded glyph itself, straight from Flutter's own icon font.
+# Icon fonts' em-square metrics rarely match their glyph's visual bounds,
+# so draw it once to measure the actual ink, then re-draw shifted so that
+# ink - not the font's baseline/ascent box - is centered on the canvas.
+font = ImageFont.truetype(FONT_PATH, size=int(SIZE * 0.62))
+glyph = chr(ECO_ROUNDED_CODEPOINT)
+probe = ImageDraw.Draw(Image.new('RGB', (SIZE, SIZE)))
+left, top, right, bottom = probe.textbbox((cx, cy), glyph, font=font, anchor="mm")
+glyph_cx, glyph_cy = (left + right) / 2, (top + bottom) / 2
 draw = ImageDraw.Draw(img)
-vein_width = max(4, int(SIZE * 0.013))
-draw.line([tip_a, tip_b], fill=VEIN, width=vein_width)
-
-stem_len = SIZE * 0.07
-dx, dy = tip_a[0] - tip_b[0], tip_a[1] - tip_b[1]
-length = math.hypot(dx, dy)
-stem_end = (tip_a[0] + dx / length * stem_len, tip_a[1] + dy / length * stem_len)
-draw.line([tip_a, stem_end], fill=VEIN, width=vein_width)
+draw.text(
+    (cx + (cx - glyph_cx), cy + (cy - glyph_cy)),
+    glyph,
+    font=font,
+    fill=ICON_COLOR,
+    anchor="mm",
+)
 
 out = os.path.join(os.path.dirname(__file__), 'app_icon_master.png')
 img.save(out)
