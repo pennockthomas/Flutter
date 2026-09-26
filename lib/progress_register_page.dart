@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
+import 'fading_edge_scroll_view.dart';
 import 'notifications.dart';
 
 class ProgressRegisterPage extends StatefulWidget {
@@ -213,19 +214,21 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
                                   ),
                                 ),
                               )
-                            : ListView.builder(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  0,
-                                  20,
-                                  24,
+                            : FadingEdgeScrollView(
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    20,
+                                    24,
+                                  ),
+                                  itemCount: _visibleRows.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildChallengeSection(
+                                      _visibleRows[index],
+                                    );
+                                  },
                                 ),
-                                itemCount: _visibleRows.length,
-                                itemBuilder: (context, index) {
-                                  return _buildChallengeSection(
-                                    _visibleRows[index],
-                                  );
-                                },
                               ),
                       ),
                     ],

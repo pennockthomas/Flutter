@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
+import 'app_page_route.dart';
 import 'app_user.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
 import 'friends_page.dart';
+import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -129,17 +131,19 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
-                          children: [
-                            _buildProfileCard(),
-                            const SizedBox(height: 14),
-                            _buildFriendsCard(),
-                            const SizedBox(height: 14),
-                            _buildCategoryCard(),
-                            const SizedBox(height: 14),
-                            _buildRecentCard(),
-                          ],
+                        child: FadingEdgeScrollView(
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
+                            children: [
+                              _buildProfileCard(),
+                              const SizedBox(height: 14),
+                              _buildFriendsCard(),
+                              const SizedBox(height: 14),
+                              _buildCategoryCard(),
+                              const SizedBox(height: 14),
+                              _buildRecentCard(),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -154,10 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return GlassPanel(
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const FriendsPage()),
-          );
+          Navigator.push(context, appPageRoute(const FriendsPage()));
         },
         child: Row(
           children: [
@@ -206,7 +207,10 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Row(
             children: [
-              _ProgressAvatar(progress: ChallengeStore.instance.progress, size: 82),
+              _ProgressAvatar(
+                progress: ChallengeStore.instance.progress,
+                size: 82,
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

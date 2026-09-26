@@ -7,9 +7,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
+import 'app_page_route.dart';
 import 'app_user.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
+import 'fading_edge_scroll_view.dart';
 import 'notifications.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -73,9 +75,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (path == null) return;
 
       final jsonText = await File(path).readAsString();
-      final succeeded = await ChallengeStore.instance.importFromJson(
-        jsonText,
+      if (!ChallengeStore.instance.isValidImportJson(jsonText)) {
+        _showMessage(
+          "That file isn't a valid EcoSteps export or contains a broken challenge tree.",
+        );
+        return;
+      }
+      if (!mounted) return;
+      final confirmed = await _confirmDataReplacement(
+        title: 'Import progress?',
+        message:
+            'This will replace your current challenge and checklist progress. EcoSteps will keep one pre-import backup that you can restore from this screen.',
+        confirmLabel: 'Import',
       );
+      if (!confirmed) return;
+
+      final succeeded = await ChallengeStore.instance.importFromJson(jsonText);
       _showMessage(
         succeeded
             ? 'Progress imported.'
@@ -84,6 +99,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       _showMessage('Could not import progress.');
     }
+  }
+
+  Future<void> _restoreImportBackup() async {
+    try {
+      final hasBackup = await ChallengeStore.instance.hasImportBackup();
+      if (!hasBackup) {
+        _showMessage('No pre-import backup is available.');
+        return;
+      }
+      if (!mounted) return;
+      final confirmed = await _confirmDataReplacement(
+        title: 'Restore previous progress?',
+        message:
+            'This will replace your current challenge and checklist progress with the backup created before your most recent import.',
+        confirmLabel: 'Restore',
+      );
+      if (!confirmed) return;
+
+      final succeeded = await ChallengeStore.instance.restoreImportBackup();
+      _showMessage(
+        succeeded
+            ? 'Previous progress restored.'
+            : 'Could not restore the pre-import backup.',
+      );
+    } catch (e) {
+      _showMessage('Could not restore the pre-import backup.');
+    }
+  }
+
+  Future<bool> _confirmDataReplacement({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async {
+    if (!mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(confirmLabel),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   void _showMessage(String message) {
@@ -100,8 +168,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SubSettingsPage(
+      appPageRoute(
+        SubSettingsPage(
           title: title,
           backgroundDarkness: _backgroundDarkness,
           children: children,
@@ -158,155 +226,147 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      _buildSettingsTile(
-                        context,
-                        Icons.person_outline,
-                        "Account Profile",
-                        [
-                          _infoTile("Name", AppUser.name),
-                          _infoTile("Profile ID", "Local profile"),
-                          _infoTile("Impact Level", "Getting Started"),
-                          _infoTile("Avatar", "Initials: ${AppUser.initials}"),
-                        ],
-                      ),
-                      _buildSettingsTile(
-                        context,
-                        Icons.palette_outlined,
-                        "Appearance",
-                        [
-                          _BackgroundDarknessTile(
-                            darkness: _backgroundDarkness,
-                          ),
-                          _SettingSwitchTile(
-                            label: "Reduce Motion",
-                            preferenceKey: AppSettingKeys.reducedMotion,
-                            defaultValue: false,
-                            onChanged: AppSettings.setReducedMotion,
-                          ),
-                          _infoTile("Current Theme", "Glass Forest"),
-                        ],
-                      ),
-                      _buildSettingsTile(
-                        context,
-                        Icons.people_alt_outlined,
-                        "Friends & Sharing",
-                        [
-                          const _SettingSwitchTile(
-                            label: "Share Total Progress",
-                            preferenceKey: AppSettingKeys.shareTotalProgress,
-                            defaultValue: true,
-                          ),
-                          const _SettingSwitchTile(
-                            label: "Share Area Progress",
-                            preferenceKey: AppSettingKeys.shareCategoryProgress,
-                            defaultValue: true,
-                          ),
-                          const _SettingSwitchTile(
-                            label: "Share Checked Items",
-                            preferenceKey: AppSettingKeys.shareChecklistItems,
-                            defaultValue: false,
-                          ),
-                          _infoTile("Friend Requests", "Coming later"),
-                        ],
-                      ),
-                      _buildSettingsTile(
-                        context,
-                        Icons.storage_outlined,
-                        "Progress & Data",
-                        [
-                          _infoTile("Storage", "Local JSON file"),
-                          _infoTile("Progress Register", "Enabled"),
-                          _infoTile("Developer Editor", "Local seed editor"),
-                          _actionTile("Export Progress", _exportProgress),
-                          _actionTile("Import Progress", _importProgress),
-                          _infoTile("Reset Progress", "Available in Start"),
-                        ],
-                      ),
-                      _buildSettingsTile(
-                        context,
-                        Icons.volume_up_rounded,
-                        "Sounds",
-                        [
-                          const _SettingSwitchTile(
-                            label: "Startup Sound",
-                            preferenceKey: AppSettingKeys.startupSound,
-                            defaultValue: true,
-                          ),
-                          const _SettingSwitchTile(
-                            label: "System Sounds",
-                            preferenceKey: AppSettingKeys.systemSounds,
-                            defaultValue: true,
-                          ),
-                          _SettingSwitchTile(
-                            label: "Background Music",
-                            preferenceKey: AppSettingKeys.backgroundMusic,
-                            defaultValue: false,
-                            onChanged: (_) =>
-                                BackgroundMusicController.instance
-                                    .syncWithSettings(),
-                          ),
-                        ],
-                      ),
-                      _buildSettingsTile(
-                        context,
-                        Icons.notifications_active_outlined,
-                        "Notifications",
-                        [
-                          _SettingSwitchTile(
-                            label: "Daily Reminders",
-                            preferenceKey: AppSettingKeys.dailyReminders,
-                            defaultValue: true,
-                            onChanged: (_) =>
-                                NotificationService.instance.syncDailyReminders(),
-                          ),
-                          const _SettingSwitchTile(
-                            label: "Milestone Alerts",
-                            preferenceKey: AppSettingKeys.milestoneAlerts,
-                            defaultValue: true,
-                          ),
-                          const _SettingSwitchTile(
-                            label: "Friend Updates",
-                            preferenceKey: AppSettingKeys.friendUpdates,
-                            defaultValue: false,
-                          ),
-                        ],
-                      ),
-                      _buildSettingsTile(
-                        context,
-                        Icons.security_outlined,
-                        "Privacy & Security",
-                        [
-                          _infoTile("Current Mode", "Local only"),
-                          _infoTile("Cloud Sync", "Not connected"),
-                          _infoTile("Authentication", "Not required yet"),
-                          _infoTile("Private Items", "Coming later"),
-                        ],
-                      ),
-                      _buildSettingsTile(
-                        context,
-                        Icons.help_outline,
-                        "Help & Support",
-                        [
-                          _infoTile("How Progress Works", "Checklist items"),
-                          _infoTile("Friends", "Prototype mode"),
-                          _infoTile("Contact", "support@ecosteps.app"),
-                        ],
-                      ),
-                      const SizedBox(height: 40),
-                      Center(
-                        child: Text(
-                          "Version 1.0.4",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 12,
+                  child: FadingEdgeScrollView(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        _buildSettingsTile(
+                          context,
+                          Icons.person_outline,
+                          "Local Profile",
+                          [
+                            _infoTile("Name", AppUser.name),
+                            _infoTile("Profile ID", "Local profile"),
+                            _infoTile("Impact Level", "Getting Started"),
+                            _infoTile(
+                              "Avatar",
+                              "Initials: ${AppUser.initials}",
+                            ),
+                          ],
+                        ),
+                        _buildSettingsTile(
+                          context,
+                          Icons.palette_outlined,
+                          "Appearance",
+                          [
+                            _BackgroundDarknessTile(
+                              darkness: _backgroundDarkness,
+                            ),
+                            _SettingSwitchTile(
+                              label: "Reduce Motion",
+                              preferenceKey: AppSettingKeys.reducedMotion,
+                              defaultValue: false,
+                              onChanged: AppSettings.setReducedMotion,
+                            ),
+                            _infoTile("Current Theme", "Glass Forest"),
+                          ],
+                        ),
+                        _buildSettingsTile(
+                          context,
+                          Icons.people_alt_outlined,
+                          "Friends Preview",
+                          [
+                            _infoTile("Status", "Sample profiles only"),
+                            _infoTile("Progress sharing", "Not connected"),
+                            _infoTile("Friend requests", "Not available"),
+                          ],
+                        ),
+                        _buildSettingsTile(
+                          context,
+                          Icons.storage_outlined,
+                          "Progress & Data",
+                          [
+                            _infoTile("Storage", "Local JSON file"),
+                            _infoTile("Progress Register", "Enabled"),
+                            _infoTile("Developer Editor", "Local seed editor"),
+                            _actionTile("Export Progress", _exportProgress),
+                            _actionTile("Import Progress", _importProgress),
+                            _actionTile(
+                              "Restore Pre-Import Backup",
+                              _restoreImportBackup,
+                            ),
+                            _infoTile("Reset Progress", "Available in Start"),
+                          ],
+                        ),
+                        _buildSettingsTile(
+                          context,
+                          Icons.volume_up_rounded,
+                          "Sounds",
+                          [
+                            const _SettingSwitchTile(
+                              label: "Startup Sound",
+                              preferenceKey: AppSettingKeys.startupSound,
+                              defaultValue: true,
+                            ),
+                            const _SettingSwitchTile(
+                              label: "System Sounds",
+                              preferenceKey: AppSettingKeys.systemSounds,
+                              defaultValue: true,
+                            ),
+                            _SettingSwitchTile(
+                              label: "Background Music",
+                              preferenceKey: AppSettingKeys.backgroundMusic,
+                              defaultValue: false,
+                              onChanged: (_) => BackgroundMusicController
+                                  .instance
+                                  .syncWithSettings(),
+                            ),
+                          ],
+                        ),
+                        _buildSettingsTile(
+                          context,
+                          Icons.notifications_active_outlined,
+                          "Notifications",
+                          [
+                            _SettingSwitchTile(
+                              label: "Daily Reminders",
+                              preferenceKey: AppSettingKeys.dailyReminders,
+                              defaultValue: true,
+                              onChanged: (_) => NotificationService.instance
+                                  .syncDailyReminders(),
+                            ),
+                            const _SettingSwitchTile(
+                              label: "Milestone Alerts",
+                              preferenceKey: AppSettingKeys.milestoneAlerts,
+                              defaultValue: true,
+                            ),
+                            _infoTile("Friend Updates", "Not connected"),
+                          ],
+                        ),
+                        _buildSettingsTile(
+                          context,
+                          Icons.security_outlined,
+                          "Privacy & Security",
+                          [
+                            _infoTile("Current Mode", "Local only"),
+                            _infoTile("Cloud Sync", "Not available"),
+                            _infoTile("Authentication", "No account used"),
+                            _infoTile("Private Items", "Not available"),
+                          ],
+                        ),
+                        _buildSettingsTile(
+                          context,
+                          Icons.help_outline,
+                          "Help & Support",
+                          [
+                            _infoTile("How Progress Works", "Checklist items"),
+                            _infoTile("Friends", "Prototype mode"),
+                            _infoTile("Contact", "support@ecosteps.app"),
+                          ],
+                        ),
+                        const SizedBox(height: 40),
+                        Center(
+                          child: Text(
+                            "Version 1.0.4",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                    ],
+                        const SizedBox(height: 18),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -626,8 +686,10 @@ class SubSettingsPage extends StatelessWidget {
                               color: Colors.white.withOpacity(0.2),
                             ),
                           ),
-                          child: SingleChildScrollView(
-                            child: Column(children: children),
+                          child: FadingEdgeScrollView(
+                            child: SingleChildScrollView(
+                              child: Column(children: children),
+                            ),
                           ),
                         ),
                       ),

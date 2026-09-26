@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +19,11 @@ class NotificationService {
   static const int _milestoneAlertId = 2;
   static const int _reminderHour = 18; // 6pm - no UI yet to customize this.
   static const int _reminderMinute = 0;
+  // Run with --dart-define=TEST_DAILY_REMINDER=true to test the real daily
+  // scheduling/cancellation flow without waiting until 6pm. Release builds
+  // always use the normal schedule.
+  static const bool _testDailyReminder =
+      kDebugMode && bool.fromEnvironment('TEST_DAILY_REMINDER');
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -65,11 +71,15 @@ class NotificationService {
 
     if (!await _requestPermissions()) return;
 
+    final scheduledTime = _testDailyReminder
+        ? tz.TZDateTime.now(tz.local).add(const Duration(minutes: 2))
+        : _nextInstanceOf(hour: _reminderHour, minute: _reminderMinute);
+
     await _plugin.zonedSchedule(
       _dailyReminderId,
       'EcoSteps',
       "Got a minute? Check off today's eco-friendly swaps.",
-      _nextInstanceOf(hour: _reminderHour, minute: _reminderMinute),
+      scheduledTime,
       const NotificationDetails(
         iOS: DarwinNotificationDetails(
           presentAlert: true,
@@ -82,6 +92,9 @@ class NotificationService {
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+    if (_testDailyReminder) {
+      debugPrint('Test daily reminder scheduled for $scheduledTime');
+    }
   }
 
   /// Shows a one-off notification for a milestone (e.g. finishing a

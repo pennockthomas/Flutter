@@ -21,15 +21,15 @@ class ChallengeStore extends ChangeNotifier {
   Map<String, Challenge> get challenges => _challenges;
 
   int get totalItems => _challenges.values.fold(
-        0,
-        (total, challenge) => total + challenge.checklist.length,
-      );
+    0,
+    (total, challenge) => total + challenge.checklist.length,
+  );
 
   int get completedItems => _challenges.values.fold(
-        0,
-        (total, challenge) =>
-            total + challenge.checklist.where((item) => item.isCompleted).length,
-      );
+    0,
+    (total, challenge) =>
+        total + challenge.checklist.where((item) => item.isCompleted).length,
+  );
 
   double get progress {
     final total = totalItems;
@@ -53,9 +53,10 @@ class ChallengeStore extends ChangeNotifier {
   }
 
   Future<void> save(Map<String, Challenge> challenges) async {
-    _challenges = Map<String, Challenge>.from(challenges);
+    final updatedChallenges = Map<String, Challenge>.from(challenges);
+    await _repository.saveChallenges(updatedChallenges.values);
+    _challenges = updatedChallenges;
     _isLoaded = true;
-    await _repository.saveChallenges(_challenges.values);
     notifyListeners();
   }
 
@@ -66,6 +67,19 @@ class ChallengeStore extends ChangeNotifier {
   /// every screen picks up the imported data. Returns whether it succeeded.
   Future<bool> importFromJson(String jsonText) async {
     final succeeded = await _repository.importFromJson(jsonText);
+    if (succeeded) {
+      await reload();
+    }
+    return succeeded;
+  }
+
+  bool isValidImportJson(String jsonText) =>
+      _repository.isValidImportJson(jsonText);
+
+  Future<bool> hasImportBackup() => _repository.hasImportBackup();
+
+  Future<bool> restoreImportBackup() async {
+    final succeeded = await _repository.restoreImportBackup();
     if (succeeded) {
       await reload();
     }

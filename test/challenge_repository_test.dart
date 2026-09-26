@@ -85,34 +85,44 @@ void main() {
     expect(reloaded.containsKey('Kitchen Renamed'), isTrue);
   });
 
-  test('reads the legacy bare-list save format for backwards compatibility',
-      () async {
-    // Older saves were a plain JSON list with no seenSeedIds tracking.
-    final seedChallenges = await repository.loadChallenges();
-    final filePath = await repository.editableFilePath();
-    final legacyJson = jsonEncode(
-      seedChallenges.values.map((Challenge c) => c.toJson()).toList(),
-    );
-    File(filePath).writeAsStringSync(legacyJson);
+  test(
+    'reads the legacy bare-list save format for backwards compatibility',
+    () async {
+      // Older saves were a plain JSON list with no seenSeedIds tracking.
+      final seedChallenges = await repository.loadChallenges();
+      final filePath = await repository.editableFilePath();
+      final legacyJson = jsonEncode(
+        seedChallenges.values.map((Challenge c) => c.toJson()).toList(),
+      );
+      File(filePath).writeAsStringSync(legacyJson);
 
-    final reloaded = await repository.loadChallenges();
+      final reloaded = await repository.loadChallenges();
 
-    expect(reloaded.containsKey('Start'), isTrue);
-    expect(reloaded.containsKey('Kitchen'), isTrue);
-  });
+      expect(reloaded.containsKey('Start'), isTrue);
+      expect(reloaded.containsKey('Kitchen'), isTrue);
+    },
+  );
 
   group('importFromJson', () {
     test('replaces saved data with valid exported JSON', () async {
       final challenges = await repository.loadChallenges();
-      final withoutKitchen = Map.of(challenges)..remove('Kitchen');
+      final withoutKitchen = Map.of(challenges)
+        ..remove('Kitchen')
+        ..['Start'] = challenges['Start']!.copyWith(
+          unlocks: challenges['Start']!.unlocks
+              .where((id) => id != 'Kitchen')
+              .toList(),
+        );
       await repository.saveChallenges(withoutKitchen.values);
-      final exportedJson =
-          File(await repository.editableFilePath()).readAsStringSync();
+      final exportedJson = File(
+        await repository.editableFilePath(),
+      ).readAsStringSync();
 
       // A second, independent repository (e.g. after reinstalling the app)
       // imports what the first one exported.
-      final freshTempDir =
-          Directory.systemTemp.createTempSync('challenge_import_test');
+      final freshTempDir = Directory.systemTemp.createTempSync(
+        'challenge_import_test',
+      );
       addTearDown(() => freshTempDir.deleteSync(recursive: true));
       PathProviderPlatform.instance = _FakePathProviderPlatform(
         freshTempDir.path,
@@ -124,6 +134,52 @@ void main() {
 
       expect(succeeded, isTrue);
       expect(imported.containsKey('Kitchen'), isFalse);
+    });
+
+    test('keeps and restores the save that existed before import', () async {
+      final original = await repository.loadChallenges();
+      final originalKitchen = original['Kitchen']!;
+      await repository.saveChallenges(
+        {
+          ...original,
+          'Kitchen': originalKitchen.copyWith(
+            checklist: [
+              originalKitchen.checklist.first.copyWith(isCompleted: true),
+              ...originalKitchen.checklist.skip(1),
+            ],
+          ),
+        }.values,
+      );
+
+      final imported = Map.of(original)
+        ..remove('Kitchen')
+        ..['Start'] = original['Start']!.copyWith(
+          unlocks: original['Start']!.unlocks
+              .where((id) => id != 'Kitchen')
+              .toList(),
+        );
+      final importedJson = jsonEncode({
+        'seenSeedIds': original.keys.toList(),
+        'challenges': imported.values
+            .map((challenge) => challenge.toJson())
+            .toList(),
+      });
+
+      expect(await repository.importFromJson(importedJson), isTrue);
+      expect(await repository.hasImportBackup(), isTrue);
+      expect(
+        (await repository.loadChallenges()).containsKey('Kitchen'),
+        isFalse,
+      );
+
+      expect(await repository.restoreImportBackup(), isTrue);
+      final restored = await repository.loadChallenges();
+      expect(restored['Kitchen']!.checklist.first.isCompleted, isTrue);
+    });
+
+    test('reports no restorable backup before an import', () async {
+      expect(await repository.hasImportBackup(), isFalse);
+      expect(await repository.restoreImportBackup(), isFalse);
     });
 
     test('accepts the legacy bare-list format', () async {
@@ -150,6 +206,57 @@ void main() {
     test('rejects well-formed JSON that is not a save file', () async {
       final succeeded = await repository.importFromJson('{"hello": "world"}');
       expect(succeeded, isFalse);
+    });
+
+    test('rejects duplicate challenge IDs', () async {
+      final duplicateIds = jsonEncode([
+        {
+          'id': 'Start',
+          'description': '',
+          'unlocks': <String>[],
+          'checklist': <dynamic>[],
+        },
+        {
+          'id': 'Start',
+          'description': 'Duplicate',
+          'unlocks': <String>[],
+          'checklist': <dynamic>[],
+        },
+      ]);
+
+      expect(await repository.importFromJson(duplicateIds), isFalse);
+    });
+
+    test('rejects unlocks that reference a missing challenge', () async {
+      final missingChild = jsonEncode([
+        {
+          'id': 'Start',
+          'description': '',
+          'unlocks': ['Missing'],
+          'checklist': <dynamic>[],
+        },
+      ]);
+
+      expect(await repository.importFromJson(missingChild), isFalse);
+    });
+
+    test('rejects cycles in the challenge tree', () async {
+      final cycle = jsonEncode([
+        {
+          'id': 'Start',
+          'description': '',
+          'unlocks': ['Kitchen'],
+          'checklist': <dynamic>[],
+        },
+        {
+          'id': 'Kitchen',
+          'description': '',
+          'unlocks': ['Start'],
+          'checklist': <dynamic>[],
+        },
+      ]);
+
+      expect(await repository.importFromJson(cycle), isFalse);
     });
   });
 }

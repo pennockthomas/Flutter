@@ -211,6 +211,105 @@ Commit: 6cc1f41
 
 ---
 
+## 2026-09-26 — Debug option for testing daily reminder delivery
+
+Added `--dart-define=TEST_DAILY_REMINDER=true`: in debug builds, the existing daily reminder schedules two minutes from the scheduling call, using the same notification ID, repeating trigger, permission flow, and cancellation path. Normal builds retain 6pm, and release builds ignore the flag. Restarting the test build or toggling reminders off/on schedules a fresh two-minute test. Run without the flag afterward with reminders enabled to replace the test's repeating schedule with 6pm (or switch reminders off to cancel it).
+
+Built and launched on the iPhone 17 Pro simulator; the scheduling call completed and logged 20:13:36 Amsterdam time. `flutter analyze lib/notifications.dart` and `git diff --check` passed. Banner delivery and cancellation have not yet been visually verified: Simulator was unavailable through the UI tools, so Thomas was asked to press Home and observe delivery.
+
+Files: `lib/notifications.dart`, `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — Daily reminder delivery confirmed
+
+Thomas confirmed the two-minute reminder worked and supplied a screenshot showing the EcoSteps notification with the expected reminder text on the simulator Home screen. This verifies actual background delivery, beyond the earlier successful scheduling call. Cancellation and next-day repetition remain unverified. Relaunched without `TEST_DAILY_REMINDER` to return to the normal 6pm scheduling path; the debug test option remains available for future checks.
+
+Files: `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — Consolidated remaining work in TODO.md
+
+Created a prioritized checklist covering the completeness review, data protection, honest feature presentation, tree performance, notifications, usability, verification, and the deferred social/backend roadmap. Distinguished confirmed reminder delivery from outstanding cancellation/repetition checks and preserved the decisions to defer broad file splitting and remove High Contrast Text. Additional hardening items are proposed work rather than claims of reproduced bugs.
+
+Files: `TODO.md` (new), `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — Honest social preview and safer progress imports
+
+Started the prioritized work in `TODO.md`. Friends now identifies itself as a preview containing sample profiles, and Settings replaces the inactive sharing/Friend Updates toggles with accurate local-only status text. Cloud Sync, Authentication, and Private Items likewise describe current behavior instead of implying an active or imminent service. Removed the now-unused preference keys for those inactive switches.
+
+Progress import now explains that it will replace challenge/checklist progress and requires confirmation. Before a valid import replaces the save, the repository atomically creates one pre-import backup. Settings exposes a confirmed "Restore Pre-Import Backup" action. Normal challenge saves and imports now write to a flushed temporary file and rename it into place, reducing the risk of a partially-written save. `ChallengeStore.save()` also waits for persistence to succeed before changing the shared in-memory state.
+
+Imports are now validated before the confirmation is shown: challenge IDs must be unique and non-empty, `Start` must exist, every unlock must resolve exactly once, and unlock relationships cannot contain a cycle. Added repository coverage for backup availability, restoring completed progress, duplicate IDs, missing references, and cycles. All 23 tests pass. Full `flutter analyze` reports 64 existing info-level deprecation/style notices under the current Flutter SDK and no errors or warnings; those notices were outside this focused change.
+
+Files: `lib/app_settings.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/friends_page.dart`, `lib/settings.dart`, `test/challenge_repository_test.dart`, `TODO.md`, `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — Soft, context-aware fades on every vertical scroll area
+
+The rectangular viewport edge visibly sliced through glass cards and checklist rows while scrolling. Added `FadingEdgeScrollView`, which listens to scroll metrics and applies a transparent shader only where more content exists: bottom-only at the start, both edges while between the ends, top-only at the bottom, and no fade when the content fits. Applied it to all nine vertical scrolling areas across Settings and its subpages, Profile, both Friends screens, Progress Register, the checklist screen, Playground editor sheets, and expanded tree-node content.
+
+Verified with `flutter analyze --no-fatal-infos` (no errors or warnings; the same 64 existing info-level notices) and `flutter test` (all 23 tests pass). Visual tuning on the simulator is pending Thomas's review after relaunch.
+
+Files: `lib/fading_edge_scroll_view.dart` (new), `lib/settings.dart`, `lib/profile_page.dart`, `lib/progress_register_page.dart`, `lib/friends_page.dart`, `lib/playground.dart`, `lib/start_page.dart`, `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — Calmer shared page transition
+
+Replaced the platform's full-width slide for in-app navigation with one shared EcoSteps route: a 320ms ease-out cross-fade with a very small upward drift, and a quicker 240ms reverse when going back. The transition is used for every Home destination, Settings subpage, Friends/profile drill-down, and challenge checklist. Reduce Motion still makes these transitions instantaneous. The startup-to-Home fade remains intentionally separate.
+
+Verified with `flutter analyze --no-fatal-infos` (no errors or warnings; the same 64 existing info-level notices) and `flutter test` (all 23 tests pass). Visual tuning is pending Thomas's simulator review.
+
+Files: `lib/app_page_route.dart` (new), `lib/main.dart`, `lib/settings.dart`, `lib/profile_page.dart`, `lib/friends_page.dart`, `lib/start_page.dart`, `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — Tree checklist consolidated into one glass panel
+
+The challenge checklist screen previously rendered each task as its own clipped blur tile, leaving the list visually fragmented over the forest background. Replaced those per-row glass tiles with one large rounded `GlassPanel` filling the checklist area. Tasks now sit inside it on transparent rows with faint inset dividers, while the scroll-edge fade affects only the task content and leaves the outer panel stable.
+
+Verified with `flutter analyze --no-fatal-infos` (no errors or warnings; 62 existing info-level notices) and `flutter test` (all 23 tests pass).
+
+Files: `lib/start_page.dart`, `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — QuickSwipe first usable version
+
+Added a QuickSwipe entry on Home and a new card-based review screen for every eco swap. Swiping right, or tapping the green button, marks the current swap complete; swiping left, or tapping the orange button, marks it still to do. Each decision is saved through the shared `ChallengeStore`, so checklist, progress, and profile views update from the same data. The card shows its category, current status, directional feedback while dragging, a preview of the next card, and a completion summary with a Review Again action.
+
+This first version intentionally uses the complete ordered swap list. Filters, shuffle, undo, streaks, and milestone-specific behavior can be added after the interaction has been reviewed.
+
+Verified with focused `flutter analyze` (no issues), `git diff --check`, and the full test suite (all 23 tests pass).
+
+Files: `lib/quick_swipe_page.dart` (new), `lib/main.dart`, `AI_LOG.md`
+Commit: not committed.
+
+---
+
+## 2026-09-26 — QuickSwipe stacked, denser cards
+
+Changed the single-card presentation into a visible pile: up to three upcoming swaps sit behind the active card with alternating rotations, small vertical offsets, and gradually reduced scale and opacity. QuickSwipe now uses its own intentionally dense glass surface with a hard-coded dark fill, stronger blur, larger corner radius, and clearer border so overlapping cards and their text remain legible over the forest background.
+
+Verified with focused `flutter analyze` (no issues), `git diff --check`, and the full test suite (all 23 tests pass).
+
+Files: `lib/quick_swipe_page.dart`, `AI_LOG.md`
+Commit: not committed.
+
+---
+
 ## Roadmap ("make the whole app function as advertised, not just bug-free")
 
 Agreed 2026-09-26, after the initial bug-fix/code-quality pass was done. The goal shifted from "fix what's broken" to "make every Settings toggle and advertised feature actually do something real." Full original plan, with current status:

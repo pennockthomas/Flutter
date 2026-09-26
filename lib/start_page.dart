@@ -5,9 +5,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
+import 'app_page_route.dart';
 import 'app_user.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
+import 'fading_edge_scroll_view.dart';
+import 'glass_panel.dart';
 import 'notifications.dart';
 
 enum NodeStatus { available, completed }
@@ -350,19 +353,17 @@ class _StartScreenState extends State<StartScreen>
 
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) {
-          return ChecklistScreen(
-            challenge: challenge,
-            onToggleItem: (itemIndex, isCompleted) async {
-              await _toggleChecklistItem(
-                label: label,
-                itemIndex: itemIndex,
-                isCompleted: isCompleted,
-              );
-            },
-          );
-        },
+      appPageRoute(
+        ChecklistScreen(
+          challenge: challenge,
+          onToggleItem: (itemIndex, isCompleted) async {
+            await _toggleChecklistItem(
+              label: label,
+              itemIndex: itemIndex,
+              isCompleted: isCompleted,
+            );
+          },
+        ),
       ),
     );
   }
@@ -726,88 +727,91 @@ class _StartScreenState extends State<StartScreen>
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       child: node.showContent
-                          ? SingleChildScrollView(
+                          ? FadingEdgeScrollView(
                               key: const ValueKey("expanded"),
-                              physics: const BouncingScrollPhysics(),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    node.label,
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    challenge?.description ?? "...",
-                                    textAlign: TextAlign.center,
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                  if (checklist.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
+                              fadeExtent: 18,
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
                                     Text(
-                                      "Checklist $completedItems/${checklist.length}",
+                                      node.label,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        color: Colors.greenAccent,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    SizedBox(
-                                      height: 34,
-                                      width: 160,
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.white24,
-                                          foregroundColor: Colors.white,
-                                          padding: EdgeInsets.zero,
-                                          textStyle: const TextStyle(
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                        onPressed: () =>
-                                            _openChecklistScreen(node.label),
-                                        child: const Text("Open Checklist"),
+                                    Text(
+                                      challenge?.description ?? "...",
+                                      textAlign: TextAlign.center,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
                                       ),
                                     ),
+                                    if (checklist.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        "Checklist $completedItems/${checklist.length}",
+                                        style: const TextStyle(
+                                          color: Colors.greenAccent,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      SizedBox(
+                                        height: 34,
+                                        width: 160,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white24,
+                                            foregroundColor: Colors.white,
+                                            padding: EdgeInsets.zero,
+                                            textStyle: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          onPressed: () =>
+                                              _openChecklistScreen(node.label),
+                                          child: const Text("Open Checklist"),
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 8),
+                                    if (!node.hasSpawnedChildren)
+                                      SizedBox(
+                                        height: 34,
+                                        width: 160,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white24,
+                                            foregroundColor: Colors.white,
+                                            padding: EdgeInsets.zero,
+                                            textStyle: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          onPressed: () => _spawnNextTier(idx),
+                                          child: const Text("Unlock Tier"),
+                                        ),
+                                      )
+                                    else
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 30,
+                                      ),
                                   ],
-                                  const SizedBox(height: 8),
-                                  if (!node.hasSpawnedChildren)
-                                    SizedBox(
-                                      height: 34,
-                                      width: 160,
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.white24,
-                                          foregroundColor: Colors.white,
-                                          padding: EdgeInsets.zero,
-                                          textStyle: const TextStyle(
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                        onPressed: () => _spawnNextTier(idx),
-                                        child: const Text("Unlock Tier"),
-                                      ),
-                                    )
-                                  else
-                                    const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.green,
-                                      size: 30,
-                                    ),
-                                ],
+                                ),
                               ),
                             )
                           : Container(
@@ -1010,52 +1014,49 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                   ),
                 ),
                 Expanded(
-                  child: ListView.separated(
+                  child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    itemCount: checklist.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final item = checklist[index];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: BackdropFilter(
-                          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                          child: CheckboxListTile(
-                            value: item.isCompleted,
-                            onChanged: (value) =>
-                                _toggleItem(index, value ?? false),
-                            activeColor: Colors.greenAccent,
-                            checkColor: Colors.black,
-                            tileColor: Colors.white.withOpacity(0.1),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                color: item.isCompleted
-                                    ? Colors.greenAccent.withOpacity(0.5)
-                                    : Colors.white24,
-                              ),
-                            ),
-                            title: Text(
-                              item.label,
-                              style: TextStyle(
-                                color: item.isCompleted
-                                    ? Colors.white54
-                                    : Colors.white,
-                                fontSize: 16,
-                                decoration: item.isCompleted
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
-                              ),
-                            ),
+                    child: GlassPanel(
+                      padding: EdgeInsets.zero,
+                      child: FadingEdgeScrollView(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: checklist.length,
+                          separatorBuilder: (context, index) => const Divider(
+                            height: 1,
+                            indent: 18,
+                            endIndent: 18,
+                            color: Colors.white12,
                           ),
+                          itemBuilder: (context, index) {
+                            final item = checklist[index];
+                            return CheckboxListTile(
+                              value: item.isCompleted,
+                              onChanged: (value) =>
+                                  _toggleItem(index, value ?? false),
+                              activeColor: Colors.greenAccent,
+                              checkColor: Colors.black,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 6,
+                              ),
+                              title: Text(
+                                item.label,
+                                style: TextStyle(
+                                  color: item.isCompleted
+                                      ? Colors.white54
+                                      : Colors.white,
+                                  fontSize: 16,
+                                  decoration: item.isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : TextDecoration.none,
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
+import 'app_page_route.dart';
+import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
 
 class FriendsPage extends StatelessWidget {
@@ -97,7 +99,7 @@ class FriendsPage extends StatelessWidget {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Follow each other gently and celebrate progress together.',
+                          'Preview only — these are sample profiles. Real friends and sharing are not connected yet.',
                           style: TextStyle(color: Colors.white70, fontSize: 15),
                         ),
                       ],
@@ -105,14 +107,16 @@ class FriendsPage extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 26),
-                    itemCount: _friends.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return _FriendCard(friend: _friends[index]);
-                    },
+                  child: FadingEdgeScrollView(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 26),
+                      itemCount: _friends.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _FriendCard(friend: _friends[index]);
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -137,9 +141,7 @@ class _FriendCard extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => _FriendProfilePage(friend: friend),
-            ),
+            appPageRoute(_FriendProfilePage(friend: friend)),
           );
         },
         child: Padding(
@@ -229,154 +231,156 @@ class _FriendProfilePage extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
-                    children: [
-                      GlassPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                _FriendAvatar(
-                                  initials: friend.initials,
-                                  progress: friend.progress,
-                                  size: 82,
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        friend.name,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.bold,
+                  child: FadingEdgeScrollView(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
+                      children: [
+                        GlassPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  _FriendAvatar(
+                                    initials: friend.initials,
+                                    progress: friend.progress,
+                                    size: 82,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          friend.name,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '${friend.completed}/${friend.total} swaps completed',
+                                          style: const TextStyle(
+                                            color: Colors.greenAccent,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                friend.message,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 15,
+                                  height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              LinearProgressIndicator(
+                                value: friend.progress,
+                                minHeight: 6,
+                                backgroundColor: Colors.white12,
+                                color: Colors.greenAccent,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        GlassPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Shared Progress',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              for (final area in friend.areaProgress) ...[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      area.label,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15,
                                       ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        '${friend.completed}/${friend.total} swaps completed',
-                                        style: const TextStyle(
-                                          color: Colors.greenAccent,
-                                          fontWeight: FontWeight.w700,
+                                    ),
+                                    Text(
+                                      '${area.completed}/${area.total}',
+                                      style: const TextStyle(
+                                        color: Colors.greenAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                LinearProgressIndicator(
+                                  value: area.progress,
+                                  minHeight: 5,
+                                  backgroundColor: Colors.white12,
+                                  color: Colors.greenAccent,
+                                ),
+                                const SizedBox(height: 14),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        GlassPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Recently Checked Off',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              for (final item in friend.recentItems)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.greenAccent,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          item,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 15,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              friend.message,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 15,
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            LinearProgressIndicator(
-                              value: friend.progress,
-                              minHeight: 6,
-                              backgroundColor: Colors.white12,
-                              color: Colors.greenAccent,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      GlassPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Shared Progress',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            for (final area in friend.areaProgress) ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    area.label,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${area.completed}/${area.total}',
-                                    style: const TextStyle(
-                                      color: Colors.greenAccent,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              LinearProgressIndicator(
-                                value: area.progress,
-                                minHeight: 5,
-                                backgroundColor: Colors.white12,
-                                color: Colors.greenAccent,
-                              ),
-                              const SizedBox(height: 14),
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      GlassPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Recently Checked Off',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            for (final item in friend.recentItems)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.greenAccent,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        item,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -441,7 +445,6 @@ class _FriendAvatar extends StatelessWidget {
     );
   }
 }
-
 
 class _FriendProfile {
   final String name;

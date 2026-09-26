@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'app_settings.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
+import 'fading_edge_scroll_view.dart';
 import 'notifications.dart';
 
 // ---------------- PLAYGROUND SCREEN (FIXED LAYOUT) ----------------
@@ -904,12 +905,14 @@ class _EditorSheetFrame extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Expanded(
-                child: SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: children,
+                child: FadingEdgeScrollView(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children,
+                    ),
                   ),
                 ),
               ),

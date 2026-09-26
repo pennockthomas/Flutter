@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_settings.dart';
+import 'app_page_route.dart';
 import 'app_user.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
@@ -11,6 +12,7 @@ import 'notifications.dart';
 import 'playground.dart';
 import 'profile_page.dart';
 import 'progress_register_page.dart';
+import 'quick_swipe_page.dart';
 import 'settings.dart';
 import 'start_page.dart';
 
@@ -84,8 +86,7 @@ class _StartupScreenState extends State<StartupScreen>
   Future<void> _playStartupSound() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final soundEnabled =
-          prefs.getBool(AppSettingKeys.startupSound) ?? true;
+      final soundEnabled = prefs.getBool(AppSettingKeys.startupSound) ?? true;
       if (!soundEnabled) return;
 
       // A small delay ensures the audio engine is "awake" before the asset fires
@@ -270,10 +271,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openPage(Widget page) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => page),
-    );
+    await Navigator.push(context, appPageRoute(page));
   }
 
   @override
@@ -300,6 +298,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   text: "Start",
                   onPressed: () {
                     _openPage(const StartScreen());
+                  },
+                ),
+                const SizedBox(height: 20),
+                GlassButton(
+                  text: "QuickSwipe",
+                  onPressed: () {
+                    _openPage(const QuickSwipePage());
                   },
                 ),
                 const SizedBox(height: 20),

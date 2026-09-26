@@ -9,6 +9,8 @@ import 'challenge_model.dart';
 class ChallengeRepository {
   static const String seedAssetPath = 'assets/data/challenge.json';
   static const String editableFileName = 'challenge_editor.json';
+  static const String importBackupFileName =
+      'challenge_editor.pre_import_backup.json';
 
   Future<Map<String, Challenge>> loadChallenges() async {
     final file = await _editableChallengeFile();
@@ -17,7 +19,11 @@ class ChallengeRepository {
     );
 
     if (!await file.exists()) {
-      await _writeChallengeFile(file, seedChallenges.values, seedChallenges.keys.toSet());
+      await _writeChallengeFile(
+        file,
+        seedChallenges.values,
+        seedChallenges.keys.toSet(),
+      );
       return seedChallenges;
     }
 
@@ -33,7 +39,11 @@ class ChallengeRepository {
     // load just because its id is momentarily absent from the saved file.
     final updatedSeenSeedIds = {...saved.seenSeedIds, ...seedChallenges.keys};
 
-    await _writeChallengeFile(file, mergedChallenges.values, updatedSeenSeedIds);
+    await _writeChallengeFile(
+      file,
+      mergedChallenges.values,
+      updatedSeenSeedIds,
+    );
     return mergedChallenges;
   }
 
@@ -50,14 +60,45 @@ class ChallengeRepository {
   /// Returns whether the import succeeded; on failure, existing data is
   /// left untouched.
   Future<bool> importFromJson(String jsonText) async {
+    if (!isValidImportJson(jsonText)) return false;
+
+    final file = await _editableChallengeFile();
+    final backupFile = await _importBackupFile();
+    if (await file.exists()) {
+      await _writeTextAtomically(backupFile, await file.readAsString());
+    } else if (await backupFile.exists()) {
+      await backupFile.delete();
+    }
+    await _writeTextAtomically(file, jsonText);
+    return true;
+  }
+
+  bool isValidImportJson(String jsonText) {
     try {
-      _decodeChallengeFile(jsonText);
+      final saved = _decodeChallengeFile(jsonText);
+      _validateChallengeGraph(saved.challenges);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> hasImportBackup() async {
+    return (await _importBackupFile()).exists();
+  }
+
+  Future<bool> restoreImportBackup() async {
+    final backupFile = await _importBackupFile();
+    if (!await backupFile.exists()) return false;
+
+    final backupText = await backupFile.readAsString();
+    try {
+      _decodeChallengeFile(backupText);
     } catch (_) {
       return false;
     }
 
-    final file = await _editableChallengeFile();
-    await file.writeAsString(jsonText);
+    await _writeTextAtomically(await _editableChallengeFile(), backupText);
     return true;
   }
 
@@ -77,14 +118,14 @@ class ChallengeRepository {
     return File('${directory.path}/$editableFileName');
   }
 
+  Future<File> _importBackupFile() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/$importBackupFileName');
+  }
+
   Map<String, Challenge> _decodeChallenges(String jsonText) {
     final decodedData = jsonDecode(jsonText) as List<dynamic>;
-    return {
-      for (final item in decodedData)
-        (item as Map<String, dynamic>)['id'] as String: Challenge.fromJson(
-          item,
-        ),
-    };
+    return _decodeChallengeList(decodedData);
   }
 
   _SavedChallengeFile _decodeChallengeFile(String jsonText) {
@@ -101,17 +142,70 @@ class ChallengeRepository {
     final map = decoded as Map<String, dynamic>;
     final challengesJson = map['challenges'] as List<dynamic>;
     return _SavedChallengeFile(
-      challenges: {
-        for (final item in challengesJson)
-          (item as Map<String, dynamic>)['id'] as String: Challenge.fromJson(
-            item,
-          ),
-      },
+      challenges: _decodeChallengeList(challengesJson),
       seenSeedIds: {
         for (final id in (map['seenSeedIds'] as List<dynamic>? ?? const []))
           id as String,
       },
     );
+  }
+
+  Map<String, Challenge> _decodeChallengeList(List<dynamic> items) {
+    final challenges = <String, Challenge>{};
+    for (final item in items) {
+      final map = item as Map<String, dynamic>;
+      final id = map['id'] as String;
+      if (id.trim().isEmpty || challenges.containsKey(id)) {
+        throw const FormatException(
+          'Challenge IDs must be unique and non-empty.',
+        );
+      }
+      challenges[id] = Challenge.fromJson(map);
+    }
+    return challenges;
+  }
+
+  void _validateChallengeGraph(Map<String, Challenge> challenges) {
+    if (!challenges.containsKey('Start')) {
+      throw const FormatException('A Start challenge is required.');
+    }
+
+    for (final challenge in challenges.values) {
+      final uniqueUnlocks = <String>{};
+      for (final unlockedId in challenge.unlocks) {
+        if (!challenges.containsKey(unlockedId)) {
+          throw FormatException(
+            '${challenge.label} unlocks a missing challenge: $unlockedId',
+          );
+        }
+        if (!uniqueUnlocks.add(unlockedId)) {
+          throw FormatException(
+            '${challenge.label} contains a duplicate unlock: $unlockedId',
+          );
+        }
+      }
+    }
+
+    final visiting = <String>{};
+    final visited = <String>{};
+
+    void visit(String id) {
+      if (visited.contains(id)) return;
+      if (!visiting.add(id)) {
+        throw const FormatException(
+          'Challenge unlocks must not contain cycles.',
+        );
+      }
+      for (final childId in challenges[id]!.unlocks) {
+        visit(childId);
+      }
+      visiting.remove(id);
+      visited.add(id);
+    }
+
+    for (final id in challenges.keys) {
+      visit(id);
+    }
   }
 
   Map<String, Challenge> _mergeSeedDefaults({
@@ -150,12 +244,22 @@ class ChallengeRepository {
     Set<String> seenSeedIds,
   ) async {
     const encoder = JsonEncoder.withIndent('  ');
-    await file.writeAsString(
+    await _writeTextAtomically(
+      file,
       encoder.convert({
-        'seenSeedIds': seenSeedIds.toList(),
+        'seenSeedIds': seenSeedIds.toList()..sort(),
         'challenges': challenges.map((c) => c.toJson()).toList(),
       }),
     );
+  }
+
+  Future<void> _writeTextAtomically(File destination, String text) async {
+    final temporaryFile = File('${destination.path}.tmp');
+    if (await temporaryFile.exists()) {
+      await temporaryFile.delete();
+    }
+    await temporaryFile.writeAsString(text, flush: true);
+    await temporaryFile.rename(destination.path);
   }
 }
 
