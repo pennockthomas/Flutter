@@ -2,6 +2,8 @@
 
 Running history of AI-assisted work on EcoSteps: what changed, why, and what's still open. Newest entries at the bottom. Read this file in full before starting new work in this repo. When you finish something worth remembering (a fix, a refactor, a decision), append a new entry in the same format — don't edit past entries except to update the "Known issues" list.
 
+Convention: when removing something that's genuinely unused (an asset, a file) rather than actively wrong code, move it into `archive/` instead of deleting it outright — see `archive/README.md`. Dead code *inside* an otherwise-used file (an unused method, an orphaned snippet) should just be deleted; archiving only makes sense for whole files.
+
 ---
 
 ## 2026-09-26 — iOS deployment target bumped to 15.0
@@ -68,6 +70,24 @@ Added `path_provider_platform_interface` as an explicit dev dependency (was prev
 Files: `test/challenge_repository_test.dart` (new), `test/challenge_store_test.dart` (new), `test/widget_test.dart`, `pubspec.yaml`, `pubspec.lock`
 Commit: 2902680
 
+## 2026-09-26 — Added archive/ for unused-but-not-deleted files
+
+`assets/background3.jpg` was tracked in git but never declared in `pubspec.yaml`'s `assets:` list and never referenced by any `Image.asset()` call — dead weight in the repo. Rather than deleting things like this outright going forward, they go in `archive/` (see `archive/README.md`) in case they were meant for something that never got finished. Moved `background3.jpg` there as the first entry.
+
+Files: `archive/README.md` (new), `archive/assets/background3.jpg` (moved from `assets/`)
+Commit: e4e405b
+
+## 2026-09-26 — Removed dead code; consolidated duplicated progress math
+
+`start_page.dart` had a second, orphaned top-level `main()` (leftover from standalone widget testing) that was never the app's real entry point — removed it.
+
+`_totalItems`/`_completedItems`/`_progress` were computed identically in `main.dart`, `profile_page.dart`, and `progress_register_page.dart` (finding #8 from the original review). Moved that logic onto `ChallengeStore` as `totalItems`/`completedItems`/`progress` getters — natural now that all three screens already read through it as their single source of truth — and updated each screen to use them instead of keeping its own copy. `profile_page.dart`'s per-category breakdown (`_categoryProgress`/`_buildCategoryProgress`) was left alone; it's a different, more complex aggregation (recursive per-category totals), not a duplicate of the simple total.
+
+Verified with `flutter analyze` (clean) and `flutter test` (all passing, including a new test for the store getters), then relaunched on the simulator and confirmed Profile still showed the correct totals ("1/118", "Kitchen 1/47") after the refactor.
+
+Files: `lib/challenge_store.dart`, `lib/main.dart`, `lib/profile_page.dart`, `lib/progress_register_page.dart`, `lib/start_page.dart`, `test/challenge_store_test.dart`
+Commit: 177de6d
+
 ---
 
 ## Known issues not yet fixed
@@ -81,9 +101,9 @@ From a full-codebase review, roughly ranked by impact. Struck-through items are 
 5. ~~No single source of truth for progress data~~ — fixed 2026-09-26.
 6. `ChallengeRepository.loadChallenges()` still always re-merges and rewrites the save file the first time it's called each session. Mitigated (not eliminated) by the shared store above.
 7. ~~`test/widget_test.dart` was still the unmodified Flutter counter-app template; no real test coverage~~ — fixed 2026-09-26 (repository/store unit tests added; UI-level coverage is still thin).
-8. Progress-calculation logic (`_totalItems`/`_completedItems`/`_progress` folds) is duplicated across `main.dart`, `profile_page.dart`, and `progress_register_page.dart` instead of living in one place (e.g. on `ChallengeStore`).
+8. ~~Progress-calculation logic duplicated across `main.dart`, `profile_page.dart`, `progress_register_page.dart`~~ — fixed 2026-09-26 (moved onto `ChallengeStore`).
 9. The glass/blur panel widget is reimplemented separately in `profile_page.dart`, `friends_page.dart`, and inlined ad hoc elsewhere.
 10. `start_page.dart` and `playground.dart` are 1000+ line God files, each mixing physics/layout, CRUD, dialogs, and rendering in one `State` class.
 11. Per-frame O(n²) physics simulation in `start_page.dart` runs 60x/sec even at rest, rebuilding several `BackdropFilter`s — will degrade as the tree grows.
-12. Dead orphaned `main()` in `start_page.dart` (line ~11), left over from standalone widget testing.
+12. ~~Dead orphaned `main()` in `start_page.dart`~~ — fixed 2026-09-26.
 13. "Thomas Pennock" / "TP" is hardcoded across four files instead of a single user model — will need to change if real accounts are ever added.
