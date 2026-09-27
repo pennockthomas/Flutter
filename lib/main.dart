@@ -14,6 +14,7 @@ import 'notifications.dart';
 import 'playground.dart';
 import 'profile_page.dart';
 import 'progress_register_page.dart';
+import 'progress_sync.dart';
 import 'quick_swipe_page.dart';
 import 'settings.dart';
 import 'start_page.dart';
@@ -22,6 +23,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    ProgressSync.instance.start();
   } catch (e) {
     // Accounts/sync are additive — the app must stay fully usable offline
     // even if Firebase can't be reached (no network, misconfigured project).

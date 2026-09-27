@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// EcoSteps Firestore rules. Anything not explicitly allowed below is denied.
+// Deploy with: firebase deploy --only firestore:rules --project ecosteps-d60b6
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Phase 3b: each user can read and write only their own profile and
+    // progress summary. Friends' read access is added in Phase 3c/3d, once
+    // an accepted-friends list exists to check against.
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /progress/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+  }
+}

@@ -419,6 +419,27 @@ Device install notes: a `flutter run` debug build dies when the cable is unplugg
 
 Files: `lib/sign_in_page.dart`, `ios/Runner.xcodeproj/project.pbxproj`
 
+## 2026-09-27 — Phase 3b: progress summary synced to Firestore
+
+While signed in, a summary of local progress is mirrored to `users/{uid}/progress/summary` (plus `displayName` on `users/{uid}`). The local JSON file stays the source of truth — this is a one-way copy for friends to read later, never read back.
+
+- `lib/progress_summary.dart` (new, pure, tested): `progressByArea()` (per top-level area, walking the unlock tree with a cycle guard) and `buildProgressSummary()` (completed/total + areas). **Counts only, no item names** — sharing checked items waits for the 3e privacy toggle. Profile's "Progress By Area" now uses `progressByArea()` instead of its own duplicate tree walk.
+- `lib/progress_sync.dart` (new): listens to `ChallengeStore` and auth state; debounces writes by 2s, skips writes when the summary is unchanged, uploads immediately on sign-in. Started from `main()` only if `Firebase.initializeApp()` succeeded. Offline writes are queued by the Firestore SDK.
+- `firestore.rules` (new, deployed; `firebase.json` points at it): owner-only read/write on `users/{uid}` and its `progress` subcollection, everything else denied. Friends' read access comes with 3c/3d.
+- Added `cloud_firestore`.
+
+**Database region:** the first `firebase deploy --only firestore:rules` auto-created the database in `nam5` (US) while enabling the Firestore API — unexpected. Thomas chose europe-west4 (Netherlands); he deleted the empty database himself (my delete attempt was blocked by the permission classifier, correctly), and it was recreated in **europe-west4** with rules redeployed. Lesson: create the database with an explicit `--location` *before* the first rules deploy.
+
+**Simulator:** Xcode updated to 27 and the iOS 26.4 runtime is gone, so the old iPhone 17 Pro simulator can't boot. Now using **iPhone 18 Pro (iOS 27.0), UDID `5420B103-7DF6-4E3A-B075-972A932C99FF`**.
+
+**Not yet verified end-to-end:** the app builds and runs with sync enabled, but no real write has been confirmed — that needs a signed-in account (Thomas to create one on the simulator, then check Firestore → Data in the console).
+
+**Known issue introduced:** for email accounts without a display name, `ProgressSync` falls back to `AppUser.name` ("Thomas Pennock"), so any other user would upload Thomas's name. Must be fixed (display name at sign-up) before friends (3c) — tracked in `TODO.md`.
+
+Tests: 5 new (`test/progress_summary_test.dart`), 28 total, all passing.
+
+Files: `lib/progress_summary.dart`, `lib/progress_sync.dart`, `lib/profile_page.dart`, `lib/main.dart`, `firestore.rules`, `firebase.json`, `pubspec.yaml`, `test/progress_summary_test.dart`
+
 ---
 
 ## Known issues not yet fixed

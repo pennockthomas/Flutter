@@ -23,6 +23,7 @@ dependencies:
   firebase_auth: ^6.7.0
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
+  cloud_firestore: ^6.10.0
 
 dev_dependencies:
   flutter_test:

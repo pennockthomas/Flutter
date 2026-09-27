@@ -10,6 +10,7 @@ import 'challenge_store.dart';
 import 'friends_page.dart';
 import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
+import 'progress_summary.dart';
 import 'sign_in_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -55,41 +56,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  List<_CategoryProgress> get _categoryProgress {
-    final start = _challenges['Start'];
-    if (start == null) return [];
-
-    return start.unlocks
-        .map((label) => _buildCategoryProgress(label))
-        .whereType<_CategoryProgress>()
-        .toList();
-  }
-
-  _CategoryProgress? _buildCategoryProgress(String rootLabel) {
-    final visited = <String>{};
-    var completed = 0;
-    var total = 0;
-
-    void visit(String label) {
-      final challenge = _challenges[label];
-      if (challenge == null || !visited.add(label)) return;
-
-      total += challenge.checklist.length;
-      completed += challenge.checklist.where((item) => item.isCompleted).length;
-
-      for (final child in challenge.unlocks) {
-        visit(child);
-      }
-    }
-
-    visit(rootLabel);
-    if (total == 0) return null;
-    return _CategoryProgress(
-      label: rootLabel,
-      completed: completed,
-      total: total,
-    );
-  }
 
   List<ChecklistItem> get _completedExamples {
     return _challenges.values
@@ -363,7 +329,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 14),
-          for (final category in _categoryProgress) ...[
+          for (final category in progressByArea(_challenges)) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -491,22 +457,5 @@ class _ProgressAvatar extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _CategoryProgress {
-  final String label;
-  final int completed;
-  final int total;
-
-  const _CategoryProgress({
-    required this.label,
-    required this.completed,
-    required this.total,
-  });
-
-  double get progress {
-    if (total == 0) return 0;
-    return completed / total;
   }
 }
