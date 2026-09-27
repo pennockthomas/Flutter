@@ -452,6 +452,30 @@ Thomas asked for a review of the app "from a blank mind." Findings went into `TO
 Tests: 3 new (`test/intro_page_test.dart`), 31 total, all passing.
 
 Files: `lib/intro_page.dart`, `lib/main.dart`, `lib/settings.dart`, `lib/start_page.dart`, `lib/quick_swipe_page.dart`, `lib/app_settings.dart`, `test/intro_page_test.dart`, `TODO.md`
+Commit: f689668
+
+## 2026-09-27 — Fixed overlapping saves colliding on the shared `.tmp` file
+
+Surfaced by the tab restructure (next entry): three tabs plus their profile avatars all called `ChallengeStore.ensureLoaded()` at the same moment. Each load can rewrite the save file (known issue 6), and every write goes through the same `challenge_editor.json.tmp` before being renamed into place, so overlapping writes renamed that file out from under each other → `PathNotFoundException` at startup.
+
+Fix in `ChallengeStore`: every disk operation (`reload`, `save`, `importFromJson`, `restoreImportBackup`) runs through a single queue (`_serialized`), so only one touches the file at a time; `ensureLoaded` shares one in-flight initial load instead of starting several (and doesn't cache a failed load). Import/restore reload via the unqueued `_reloadNow` to avoid queueing behind themselves. Regression test fires 3 reloads + 3 saves at once — confirmed it throws the exact `PathNotFoundException` against the old store and passes with the fix; last queued save wins in memory and on disk.
+
+Tests: 33 total, all passing.
+
+Files: `lib/challenge_store.dart`, `test/challenge_store_test.dart`, `TODO.md`
+
+## 2026-09-27 — Restructure: tree is the main screen, with a bottom tab bar
+
+Thomas: "the main page is the unlock tree with a taskbar below" — then chose 3 tabs, profile top-right, settings inside profile ("most apps have it like this").
+
+- `lib/app_shell.dart` (new): `AppShell` = `IndexedStack` of Tree / QuickSwipe / Progress + a floating glass `ShellTabBar`. `extendBody` lets the background run behind the bar while pages' `SafeArea`s keep content above it. Hidden tabs are wrapped in `TickerMode(enabled: false)` so the tree's always-on physics pauses off-tab. Also took over the background-music app-lifecycle observer from the old Home screen.
+- Startup (splash → intro on first launch) now lands on `AppShell`. **The old Home menu screen is deleted** (`HomeScreen`, `_ProfileWelcomeButton`, `_MenuProgressAvatar`, `GlassButton`) — it was a class inside `main.dart`, not a whole file, so deleted rather than archived. Its widget test was replaced by `ShellTabBar` tests.
+- `lib/profile_avatar_button.dart` (new): the initials + progress-ring avatar, top-right on all three tabs, opens Profile. Profile has a gear icon top-right that opens Settings.
+- Tree: no back button (it's the root). The reset button, which sat where the avatar now goes, moved into the ^ progress panel as "Reset progress" (same confirm dialog). The panel is lifted above the tab bar.
+- QuickSwipe / Progress: back buttons removed. QuickSwipe now listens to `ChallengeStore` and refreshes completion flags (keeping its review order/position), since it stays alive as a tab while items are checked elsewhere; Tree and Progress already listened.
+- Intro slide 3 now says "QuickSwipe or Progress tabs".
+
+Files: `lib/app_shell.dart`, `lib/profile_avatar_button.dart`, `lib/main.dart`, `lib/start_page.dart`, `lib/quick_swipe_page.dart`, `lib/progress_register_page.dart`, `lib/profile_page.dart`, `lib/intro_page.dart`, `test/widget_test.dart`
 
 ---
 

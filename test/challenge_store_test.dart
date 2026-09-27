@@ -113,4 +113,39 @@ void main() {
     expect(ChallengeStore.instance.completedItems, 1);
     expect(ChallengeStore.instance.progress, 1 / expectedTotal);
   });
+
+  // Regression: with the tab layout, several screens load at once, and every
+  // load/save writes through the same `.tmp` file. Overlapping operations
+  // used to rename that file out from under each other (PathNotFoundException).
+  test('overlapping loads and saves run one at a time, last one wins',
+      () async {
+    final base = await ChallengeStore.instance.ensureLoaded();
+    final kitchen = base['Kitchen']!;
+    Map<String, Challenge> withFirstItem({required bool completed}) => {
+          ...base,
+          'Kitchen': kitchen.copyWith(
+            checklist: [
+              kitchen.checklist.first.copyWith(isCompleted: completed),
+              ...kitchen.checklist.skip(1),
+            ],
+          ),
+        };
+
+    await Future.wait([
+      ChallengeStore.instance.reload(),
+      ChallengeStore.instance.reload(),
+      ChallengeStore.instance.save(withFirstItem(completed: true)),
+      ChallengeStore.instance.reload(),
+      ChallengeStore.instance.save(withFirstItem(completed: false)),
+      ChallengeStore.instance.save(withFirstItem(completed: true)),
+    ]);
+
+    expect(
+      ChallengeStore.instance.challenges['Kitchen']!.checklist.first
+          .isCompleted,
+      isTrue,
+    );
+    final persisted = await ChallengeRepository().loadChallenges();
+    expect(persisted['Kitchen']!.checklist.first.isCompleted, isTrue);
+  });
 }

@@ -89,7 +89,7 @@ Quick wins (roughly 15–30 minutes each): display-name field at sign-up (fixes 
 - [ ] Cover reset behavior, ensuring settings survive while checklist progress and unlock state reset consistently.
 - [ ] Cover import cancellation, invalid imports, failed writes, and backup recovery.
 - [ ] Cover notification preferences and scheduling/cancellation behavior without relying only on manual tests.
-- [ ] Test rapid edits and overlapping loads/saves for lost updates; serialize operations if needed.
+- [x] Test rapid edits and overlapping loads/saves for lost updates; serialize operations if needed. (Done 2026-09-27: the tab layout made several screens load at once, which collided on the shared `.tmp` save file (`PathNotFoundException`). `ChallengeStore` now runs all disk operations one at a time and shares a single initial load; regression test in `test/challenge_store_test.dart`.)
 - [ ] Test physical-device cold launch, relaunch, background/foreground transitions, and interrupted operations.
 - [ ] Verify startup sound, background music, completion sound, and unlock sound with their settings enabled and disabled.
 - [ ] Run an end-to-end local-user trial: start fresh, complete challenges, edit, export, import, reset, and relaunch.
