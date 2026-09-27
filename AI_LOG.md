@@ -439,6 +439,19 @@ While signed in, a summary of local progress is mirrored to `users/{uid}/progres
 Tests: 5 new (`test/progress_summary_test.dart`), 28 total, all passing.
 
 Files: `lib/progress_summary.dart`, `lib/progress_sync.dart`, `lib/profile_page.dart`, `lib/main.dart`, `firestore.rules`, `firebase.json`, `pubspec.yaml`, `test/progress_summary_test.dart`
+Commit: d9eec07
+
+## 2026-09-27 — Fresh-eyes review; first-run intro, trimmed Settings, Playground behind debug
+
+Thomas asked for a review of the app "from a blank mind." Findings went into `TODO.md` → "P2 — First-run clarity and product polish" (existing overlapping items were updated in place; the stale P3 accounts section was brought up to date). Three were then implemented:
+
+- **Settings: removed every read-only info row** (Thomas: "just remove them"). Local Profile, Friends Preview, Privacy & Security, and Help & Support contained nothing else and are gone; also removed "Current Theme", "Storage", "Developer Editor", "Friend Updates", and the "Reset Progress: Available in Start" pointer. Settings now holds only Appearance, Progress & Data, Sounds, Notifications (+ Developer in debug). `_infoTile` deleted.
+- **Playground off the Home menu.** It can rename/delete challenges, so it's a developer tool: now only under Settings → Developer, a section that exists only when `kDebugMode`. Release builds (incl. Thomas's phone) have no Playground. QuickSwipe's empty-state text no longer mentions it.
+- **First-run intro** (`lib/intro_page.dart`): 3 glass-panel slides (what the app is / the tree / tick off what you already own) between the splash and Home, first launch only (pref `onboarding.intro_seen`), with Skip, page dots, reduced-motion aware. Startup captures the `NavigatorState` up front because the splash's context is gone by the time the intro finishes. Replay via Settings → Developer (debug). Plus a "Tap Start to begin" hint under the lone Start bubble until it's opened. No Home tagline — the splash already says "One step closer to plastic-free".
+
+Tests: 3 new (`test/intro_page_test.dart`), 31 total, all passing.
+
+Files: `lib/intro_page.dart`, `lib/main.dart`, `lib/settings.dart`, `lib/start_page.dart`, `lib/quick_swipe_page.dart`, `lib/app_settings.dart`, `test/intro_page_test.dart`, `TODO.md`
 
 ---
 

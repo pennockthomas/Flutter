@@ -1,6 +1,6 @@
 # EcoSteps — Remaining work
 
-Updated: 2026-09-26.
+Updated: 2026-09-27.
 
 This checklist consolidates the completeness review and remaining roadmap work. New improvements are proposals, not confirmed bugs. Prioritize a dependable local iOS app before expanding into accounts and social features. Check items off only when implemented and verified; keep the history in `AI_LOG.md`.
 
@@ -54,15 +54,34 @@ Relevant files: `lib/notifications.dart`, `lib/settings.dart`, and the three che
 
 ## P2 — Everyday usability and consistency
 
-- [ ] Replace the hardcoded identity with an editable, persisted local name and derived initials; accounts are not required for this.
-- [ ] Make the displayed impact level reflect progress, or remove the static "Getting Started" label.
+- [ ] Replace the hardcoded identity with an editable, persisted local name and derived initials; accounts are not required for this. **Now blocks Phase 3c:** every user currently sees "Thomas Pennock" / "TP", and `ProgressSync` falls back to `AppUser.name` for email accounts, so a friend signing up would appear to others as "Thomas Pennock". Ask for a display name in the create-account form and use it everywhere.
+- [x] Make the displayed impact level reflect progress, or remove the static "Getting Started" label. (Removed with the Settings info rows, 2026-09-27.)
 - [ ] Read the displayed version from package metadata; Settings currently says 1.0.4 while `pubspec.yaml` says 1.0.0+1.
-- [ ] Verify the support contact is real and usable before presenting it to other users.
+- [ ] Verify the support contact is real and usable before presenting it to other users. (`support@ecosteps.app` was removed from Settings on 2026-09-27; add a real contact back only once one exists.)
 - [ ] Add concise help explaining challenge unlocks, checklist progress, editing, reset, and backup behavior.
 - [ ] Test first launch and empty, loading, and error states with someone unfamiliar with the app.
 - [ ] Check text scaling, VoiceOver labels, touch targets, and text readability over the background image.
-- [ ] Test small screens, landscape, keyboard interaction, and iPad if those layouts remain supported.
-- [ ] Decide whether Playground is a user feature or a developer tool, and label/expose it accordingly.
+- [ ] Test small screens, landscape, keyboard interaction, and iPad if those layouts remain supported. Recommendation: lock iPhone to portrait — `Info.plist` allows landscape but no screen is designed for it.
+- [x] Decide whether Playground is a user feature or a developer tool, and label/expose it accordingly. (Done 2026-09-27: it's a developer tool. Removed from the Home menu; reachable only via Settings → Developer, which exists only in debug builds (`kDebugMode`). Release builds, including installs on Thomas's phone, have no Playground.)
+
+## P2 — First-run clarity and product polish
+
+From a fresh-eyes walkthrough on 2026-09-27 (treating the app as a first-time user on a clean simulator install). Proposals, not confirmed bugs — check with Thomas before implementing the larger ones.
+
+Bigger:
+- [x] Explain what the app is for on first launch. (Done 2026-09-27: 3-screen intro between the splash and Home on first launch only (`lib/intro_page.dart`, flag `onboarding.intro_seen`), plus a "Tap Start to begin" hint under the lone Start bubble until it's opened. Replay via Settings → Developer in debug builds. No Home tagline — the splash already says "One step closer to plastic-free".)
+- [ ] Decide the role of the three ways to check off the same 118 items (Start tree, QuickSwipe, Progress Register) — nothing explains how they differ. Suggestion: the tree is the main "journey", Progress Register is the list view, and QuickSwipe is offered once at the beginning ("already own some of these? swipe through them").
+- [ ] Give each swap meaning: why it's better, what it replaces, rough cost. Continue the product illustrations (one done so far — see `tool/generate_product_icons.py`). Consider impact feedback when checking items off (e.g. "≈ 40 plastic items avoided a year").
+
+Smaller:
+- [ ] Show overall progress (e.g. 0/118) on Home; it's currently only visible behind the TP avatar.
+- [ ] Replace internal jargon with plain words: "Unlock Tier" → e.g. "Show next steps"; "Parent: Start" → "Part of: Kitchen"; "parent bubbles" in the search placeholder; consider renaming "Progress Register" (e.g. "My swaps").
+- [ ] Start screen icons: the top-right refresh icon resets **all** progress but looks like "reload" — move reset into Settings → Progress & Data (the old "Reset Progress: Available in Start" pointer row was removed with the other info rows, so reset is now only discoverable on the Start screen). Label or explain the bottom-right ^ button, which opens a hidden progress panel.
+- [ ] Give the Home menu buttons (`GlassButton`) press feedback (highlight or slight shrink); taps currently feel unresponsive even when they register.
+- [x] Trim Settings rows that aren't settings. (Done 2026-09-27: all read-only info rows removed. Local Profile, Friends Preview, Privacy & Security, and Help & Support had nothing else and are gone. Settings now holds only Appearance, Progress & Data, Sounds, and Notifications.)
+- [ ] Fix the truncated Progress Register search placeholder ("Search swaps, rooms, or parent bu…").
+
+Quick wins (roughly 15–30 minutes each): display-name field at sign-up (fixes the identity bug above), lock portrait, hide Playground in release, move reset into Settings, rename jargon, button press feedback.
 
 ## P2 — Verification before a wider iOS release
 
@@ -80,12 +99,12 @@ Baseline: all 18 existing tests passed on 2026-09-26. Most cover models and pers
 
 ## P3 — Accounts, friends, sharing, and cloud sync
 
-Deferred roadmap phase. Requires Thomas's explicit go-ahead before implementation; this checklist does not authorize starting a backend.
+Started 2026-09-27 with Thomas's go-ahead. Backend: Firebase (Auth + Firestore, database in europe-west4). Sub-phases 3a–3e and the data model are in `AI_LOG.md` → "Phase 3 scoping". Done: 3a (auth). In progress: 3b (progress summary sync — code written, needs an end-to-end check with a real sign-in).
 
-- [ ] Agree the first release's social scope and whether users can continue without an account.
-- [ ] Choose the backend after agreeing data, hosting, privacy, and cost requirements.
-- [ ] Define users, challenges, friendships, invitations, and shared-progress data models.
-- [ ] Implement sign-up, sign-in, sign-out, account recovery, and account deletion.
+- [x] Agree the first release's social scope and whether users can continue without an account. (Accounts are optional; the app stays fully usable signed out.)
+- [x] Choose the backend after agreeing data, hosting, privacy, and cost requirements. (Firebase, free Spark plan.)
+- [x] Define users, challenges, friendships, invitations, and shared-progress data models.
+- [ ] Implement sign-up, sign-in, sign-out, account recovery, and account deletion. (Email sign-up/in/out done. Sign in with Apple is built but hidden until Thomas has a paid Apple Developer account. No password-reset UI or account deletion yet — `AuthService.sendPasswordResetEmail` exists but nothing calls it; account deletion is required by the App Store.)
 - [ ] Preserve existing local progress when signing in; define merge/conflict rules before adding synchronization.
 - [ ] Implement cloud sync with offline behavior, retries, and visible sync status.
 - [ ] Replace the three sample friends with real data and useful empty/loading/error states.
@@ -109,6 +128,7 @@ Do not reintroduce High Contrast Text: it was deliberately removed at Thomas's r
 
 ## Suggested order
 
+0. Before friends (Phase 3c): fix the hardcoded identity (display name at sign-up).
 1. Make incomplete features visibly honest and protect saved progress.
 2. Measure and improve tree performance.
 3. Finish notification controls and verification.

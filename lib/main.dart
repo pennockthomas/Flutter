@@ -10,8 +10,8 @@ import 'app_user.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
 import 'firebase_options.dart';
+import 'intro_page.dart';
 import 'notifications.dart';
-import 'playground.dart';
 import 'profile_page.dart';
 import 'progress_register_page.dart';
 import 'progress_sync.dart';
@@ -110,19 +110,36 @@ class _StartupScreenState extends State<StartupScreen>
     }
   }
 
-  void _goToHome() {
+  Future<void> _goToHome() async {
     if (!mounted || _didNavigate) return;
     _didNavigate = true;
 
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const HomeScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 1000),
+    // First launch shows the intro before Home; after that, straight home.
+    final introSeen = await IntroPage.hasBeenSeen();
+    if (!mounted) return;
+
+    // Captured now: this screen (and its context) is gone by the time the
+    // intro finishes, but the app's navigator outlives it.
+    final navigator = Navigator.of(context);
+    navigator.pushReplacement(
+      _fadeRoute(
+        introSeen
+            ? const HomeScreen()
+            : IntroPage(
+                onFinished: () =>
+                    navigator.pushReplacement(_fadeRoute(const HomeScreen())),
+              ),
       ),
+    );
+  }
+
+  static Route<void> _fadeRoute(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      transitionDuration: const Duration(milliseconds: 1000),
     );
   }
 
@@ -324,13 +341,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   text: "Progress Register",
                   onPressed: () {
                     _openPage(const ProgressRegisterPage());
-                  },
-                ),
-                const SizedBox(height: 20),
-                GlassButton(
-                  text: "Playground",
-                  onPressed: () {
-                    _openPage(const PlaygroundScreen());
                   },
                 ),
                 const SizedBox(height: 20),

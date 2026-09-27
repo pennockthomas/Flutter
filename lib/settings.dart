@@ -2,17 +2,19 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
 import 'app_page_route.dart';
-import 'app_user.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
 import 'fading_edge_scroll_view.dart';
+import 'intro_page.dart';
 import 'notifications.dart';
+import 'playground.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -232,20 +234,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _buildSettingsTile(
                           context,
-                          Icons.person_outline,
-                          "Local Profile",
-                          [
-                            _infoTile("Name", AppUser.name),
-                            _infoTile("Profile ID", "Local profile"),
-                            _infoTile("Impact Level", "Getting Started"),
-                            _infoTile(
-                              "Avatar",
-                              "Initials: ${AppUser.initials}",
-                            ),
-                          ],
-                        ),
-                        _buildSettingsTile(
-                          context,
                           Icons.palette_outlined,
                           "Appearance",
                           [
@@ -258,17 +246,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               defaultValue: false,
                               onChanged: AppSettings.setReducedMotion,
                             ),
-                            _infoTile("Current Theme", "Glass Forest"),
-                          ],
-                        ),
-                        _buildSettingsTile(
-                          context,
-                          Icons.people_alt_outlined,
-                          "Friends Preview",
-                          [
-                            _infoTile("Status", "Sample profiles only"),
-                            _infoTile("Progress sharing", "Not connected"),
-                            _infoTile("Friend requests", "Not available"),
                           ],
                         ),
                         _buildSettingsTile(
@@ -276,16 +253,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Icons.storage_outlined,
                           "Progress & Data",
                           [
-                            _infoTile("Storage", "Local JSON file"),
-                            _infoTile("Progress Register", "Enabled"),
-                            _infoTile("Developer Editor", "Local seed editor"),
                             _actionTile("Export Progress", _exportProgress),
                             _actionTile("Import Progress", _importProgress),
                             _actionTile(
                               "Restore Pre-Import Backup",
                               _restoreImportBackup,
                             ),
-                            _infoTile("Reset Progress", "Available in Start"),
                           ],
                         ),
                         _buildSettingsTile(
@@ -330,30 +303,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               preferenceKey: AppSettingKeys.milestoneAlerts,
                               defaultValue: true,
                             ),
-                            _infoTile("Friend Updates", "Not connected"),
                           ],
                         ),
-                        _buildSettingsTile(
-                          context,
-                          Icons.security_outlined,
-                          "Privacy & Security",
-                          [
-                            _infoTile("Current Mode", "Local only"),
-                            _infoTile("Cloud Sync", "Not available"),
-                            _infoTile("Authentication", "No account used"),
-                            _infoTile("Private Items", "Not available"),
-                          ],
-                        ),
-                        _buildSettingsTile(
-                          context,
-                          Icons.help_outline,
-                          "Help & Support",
-                          [
-                            _infoTile("How Progress Works", "Checklist items"),
-                            _infoTile("Friends", "Prototype mode"),
-                            _infoTile("Contact", "support@ecosteps.app"),
-                          ],
-                        ),
+                        // Playground can rename and delete challenges, so it's a
+                        // developer tool: debug builds only, never in a release.
+                        if (kDebugMode)
+                          _buildSettingsTile(
+                            context,
+                            Icons.construction_outlined,
+                            "Developer",
+                            [
+                              _actionTile(
+                                "Playground (challenge editor)",
+                                () => Navigator.push(
+                                  context,
+                                  appPageRoute(const PlaygroundScreen()),
+                                ),
+                              ),
+                              _actionTile(
+                                "Replay first-run intro",
+                                () => Navigator.push(
+                                  context,
+                                  appPageRoute(
+                                    IntroPage(
+                                      onFinished: () => Navigator.pop(context),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         const SizedBox(height: 40),
                         Center(
                           child: Text(
@@ -421,38 +400,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  static Widget _infoTile(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

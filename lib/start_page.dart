@@ -473,6 +473,34 @@ class _StartScreenState extends State<StartScreen>
             ),
           ),
 
+          // First-visit hint: only the lone Start bubble exists and it hasn't
+          // been opened yet. Sits just under the bubble, which starts centered.
+          if (nodes.length == 1 && !nodes.first.isExpanded)
+            const Align(
+              alignment: Alignment(0, 0.24),
+              child: IgnorePointer(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.touch_app_rounded,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Tap Start to begin',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        shadows: [Shadow(blurRadius: 8)],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // ✅ Top Left: Go Back Button (Settings Style)
           Positioned(
             top: 50,

@@ -11,6 +11,7 @@ class AppSettingKeys {
   static const dailyReminders = 'settings.daily_reminders';
   static const milestoneAlerts = 'settings.milestone_alerts';
   static const reducedMotion = 'settings.reduced_motion';
+  static const introSeen = 'onboarding.intro_seen';
 }
 
 class AppSounds {

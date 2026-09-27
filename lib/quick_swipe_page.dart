@@ -336,7 +336,7 @@ class _QuickSwipePageState extends State<QuickSwipePage>
           padding: EdgeInsets.all(28),
           child: GlassPanel(
             child: Text(
-              'Add checklist swaps in Playground to use QuickSwipe.',
+              'There are no swaps to review yet.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
