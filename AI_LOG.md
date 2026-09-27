@@ -393,6 +393,20 @@ Lesson for future glass-panel work: if a panel still looks off, check whether it
 
 Files: `lib/fading_edge_scroll_view.dart`, `lib/profile_page.dart`, `lib/friends_page.dart`, `lib/progress_register_page.dart`, `lib/settings.dart`
 
+## 2026-09-27 — QuickSwipe: card rotation, shuffle button, and a shuffle animation
+
+Three follow-up rounds on QuickSwipe's card deck, the last two from Thomas reviewing a screen recording rather than a description.
+
+**Round 1 — added a shuffle button and tried to fix a rotation "pop."** The stacked preview cards (depth 1–3) were already tilted, but the promoted card reset to perfectly straight rotation the instant it became active, which read as a jarring snap. First attempt: made the active card's rest angle a single fixed constant (matching depth-1's angle). Also added the shuffle icon button in the header, reordering `_items` from `_currentIndex` onward.
+
+**Round 2 — that "fix" just moved the problem.** Thomas caught it on a screen recording: every card now rotated to the *exact same* angle once active (no variety), and position/scale still jumped instantly on promotion — rotation wasn't the only thing that changes when a card moves from stack to front. Root cause of the "teleport": the promoted card's translate offset and scale changed discretely between the `_StackedPreviewCard` code path and the active-card code path, with nothing animating between them.
+
+Real fix: gave each card slot a **persistent per-position tilt** (`_itemWobble`, a small repeating pattern keyed to index — index 0 always straight, everything else cycles through a fixed set of small angles) used identically whether the card is a stacked preview or the active card, so a promoted card's rotation literally never changes (zero-jump by construction, not by coincidence). Separately, wrapped the active card in a ~200ms "settle" animation that eases its position/scale/opacity from exactly the depth-1 preview's values up to the true active values, instead of snapping — that's what actually killed the teleport.
+
+**Round 3 — a real shuffle animation.** The shuffle button reordered cards instantly with no animation. Added an `AnimationController`-driven flourish: tapping shuffle fans the up-to-4 visible cards out into a hand-of-cards spread (`_buildShuffleAnimation`, a separate non-interactive render path used only while `_isShuffling`), swaps `_items` at the peak of the fan, then eases back into the normal stack with the new order. Dragging and the decision buttons are disabled for the ~0.5s duration so it can't be interrupted mid-shuffle.
+
+Files: `lib/quick_swipe_page.dart`
+
 ---
 
 ## Known issues not yet fixed

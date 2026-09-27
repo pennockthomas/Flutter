@@ -14,7 +14,8 @@ class QuickSwipePage extends StatefulWidget {
   State<QuickSwipePage> createState() => _QuickSwipePageState();
 }
 
-class _QuickSwipePageState extends State<QuickSwipePage> {
+class _QuickSwipePageState extends State<QuickSwipePage>
+    with SingleTickerProviderStateMixin {
   static const double _decisionThreshold = 90;
 
   List<_QuickSwipeItem> _items = [];
@@ -23,10 +24,40 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
   bool _isDragging = false;
   bool _isSaving = false;
   bool _isLoading = true;
+  bool _isShuffling = false;
   String? _loadError;
+
+  /// Drives the shuffle flourish: 0 → 1 fans the visible cards out, the item
+  /// order is swapped at the peak, then 1 → 0 brings the (now reordered)
+  /// cards back into the stack.
+  late final AnimationController _shuffleController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
 
   _QuickSwipeItem? get _currentItem =>
       _currentIndex < _items.length ? _items[_currentIndex] : null;
+
+  /// A small persistent tilt per card position, so cards don't all rest at
+  /// the exact same angle. It's keyed to the item's slot in `_items` (not a
+  /// random value picked at render time) so a given card always renders
+  /// with the same tilt whether it's a stacked preview or the active card —
+  /// that's what lets a promoted card keep its angle with zero visible jump.
+  static const List<double> _wobblePattern = [
+    0.05,
+    -0.07,
+    0.06,
+    -0.045,
+    0.08,
+    -0.06,
+    0.04,
+    -0.08,
+  ];
+
+  double _itemWobble(int globalIndex) {
+    if (globalIndex == 0) return 0;
+    return _wobblePattern[globalIndex % _wobblePattern.length];
+  }
 
   @override
   void initState() {
@@ -152,6 +183,31 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
     });
   }
 
+  Future<void> _shuffleRemaining() async {
+    if (_isSaving || _isShuffling || _currentIndex >= _items.length - 1) {
+      return;
+    }
+    setState(() => _isShuffling = true);
+    await _shuffleController.forward(from: 0);
+    if (!mounted) return;
+    setState(() {
+      final remaining = _items.sublist(_currentIndex)..shuffle();
+      _items = [..._items.sublist(0, _currentIndex), ...remaining];
+    });
+    await _shuffleController.reverse();
+    if (!mounted) return;
+    setState(() {
+      _isShuffling = false;
+      _dragOffset = Offset.zero;
+    });
+  }
+
+  @override
+  void dispose() {
+    _shuffleController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -216,7 +272,14 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
               ],
             ),
           ),
-          if (!_isLoading && _items.isNotEmpty)
+          if (!_isLoading && _items.isNotEmpty) ...[
+            IconButton(
+              tooltip: 'Shuffle remaining swaps',
+              icon: const Icon(Icons.shuffle_rounded, color: Colors.white70),
+              onPressed: _isShuffling || _currentIndex >= _items.length - 1
+                  ? null
+                  : _shuffleRemaining,
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
@@ -232,6 +295,7 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -295,8 +359,14 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
       builder: (context, constraints) {
         final cardWidth = math.min(constraints.maxWidth - 54, 370.0);
         final cardHeight = math.min(constraints.maxHeight - 38, 470.0);
+
+        if (_isShuffling) {
+          return _buildShuffleAnimation(cardWidth, cardHeight);
+        }
+
         final item = _currentItem!;
         final strength = (_dragOffset.dx / _decisionThreshold).clamp(-1.0, 1.0);
+        final wobble = _itemWobble(_currentIndex);
 
         return Center(
           child: SizedBox(
@@ -313,35 +383,155 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
                       width: cardWidth,
                       height: cardHeight,
                       item: _items[_currentIndex + depth],
+                      wobble: _itemWobble(_currentIndex + depth),
                     ),
-                TweenAnimationBuilder<Offset>(
+                // A card just promoted from depth 1 looked slightly offset,
+                // scaled down, and faded as a preview a moment ago. Easing
+                // from that exact look up to the true "active" look (instead
+                // of snapping straight there) is what removes the teleport —
+                // its rotation never needs to change at all, since `wobble`
+                // is the same value it already had as a depth-1 preview.
+                TweenAnimationBuilder<double>(
                   key: ValueKey('${item.challengeId}:${item.itemIndex}'),
-                  tween: Tween<Offset>(end: _dragOffset),
-                  duration: _isDragging
-                      ? Duration.zero
-                      : const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, offset, child) {
-                    return Transform.translate(
-                      offset: offset,
-                      child: Transform.rotate(
-                        angle: (offset.dx / cardWidth) * 0.12,
-                        child: child,
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  builder: (context, settle, child) {
+                    final baseOffset = Offset.lerp(
+                      Offset(
+                        _StackedPreviewCard.offsetXForDepth(1),
+                        _StackedPreviewCard.offsetYForDepth(1),
+                      ),
+                      Offset.zero,
+                      settle,
+                    )!;
+                    final baseScale = ui.lerpDouble(
+                      _StackedPreviewCard.scaleForDepth(1),
+                      1.0,
+                      settle,
+                    )!;
+                    final baseOpacity = ui.lerpDouble(
+                      _StackedPreviewCard.opacityForDepth(1),
+                      1.0,
+                      settle,
+                    )!;
+                    return Opacity(
+                      opacity: baseOpacity,
+                      child: Transform.translate(
+                        offset: baseOffset,
+                        child: Transform.scale(scale: baseScale, child: child),
                       ),
                     );
                   },
-                  child: GestureDetector(
-                    onPanUpdate: _handlePanUpdate,
-                    onPanEnd: _handlePanEnd,
-                    child: _SwapCard(
-                      width: cardWidth,
-                      height: cardHeight,
-                      item: item,
-                      decisionStrength: strength,
+                  child: TweenAnimationBuilder<Offset>(
+                    tween: Tween<Offset>(end: _dragOffset),
+                    duration: _isDragging
+                        ? Duration.zero
+                        : const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, offset, child) {
+                      return Transform.translate(
+                        offset: offset,
+                        child: Transform.rotate(
+                          angle: wobble + (offset.dx / cardWidth) * 0.12,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: GestureDetector(
+                      onPanUpdate: _handlePanUpdate,
+                      onPanEnd: _handlePanEnd,
+                      child: _SwapCard(
+                        width: cardWidth,
+                        height: cardHeight,
+                        item: item,
+                        decisionStrength: strength,
+                      ),
                     ),
                   ),
                 ),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Shown instead of the normal interactive deck while [_isShuffling]. It's
+  /// deliberately a separate, non-interactive render path rather than trying
+  /// to blend the fan effect into the draggable active-card machinery above
+  /// — dragging is disabled for the moment anyway, so there's nothing to
+  /// reconcile. `_shuffleController` runs 0→1 (fan out), the item order is
+  /// swapped at the peak, then 1→0 (cards land back into the stack, now
+  /// showing the reshuffled order).
+  Widget _buildShuffleAnimation(double cardWidth, double cardHeight) {
+    return AnimatedBuilder(
+      animation: _shuffleController,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_shuffleController.value);
+        final layers = <Widget>[];
+
+        for (var depth = 3; depth >= 0; depth--) {
+          final index = _currentIndex + depth;
+          if (index >= _items.length) continue;
+          final item = _items[index];
+
+          final stackOffsetX = depth == 0
+              ? 0.0
+              : _StackedPreviewCard.offsetXForDepth(depth);
+          final stackOffsetY = depth == 0
+              ? 0.0
+              : _StackedPreviewCard.offsetYForDepth(depth);
+          final stackScale = depth == 0
+              ? 1.0
+              : _StackedPreviewCard.scaleForDepth(depth);
+          final stackOpacity = depth == 0
+              ? 1.0
+              : _StackedPreviewCard.opacityForDepth(depth);
+          final stackAngle = depth == 0
+              ? _itemWobble(index)
+              : _itemWobble(index) + _StackedPreviewCard.fanBonusForDepth(depth);
+
+          // A hand-of-cards spread: fanned horizontally by depth, each one
+          // tilted further out from center than the last.
+          final fanSpread = depth - 1.5;
+          final fanOffsetX = fanSpread * 78.0;
+          final fanOffsetY = 22.0 + depth * 5.0;
+          final fanAngle = fanSpread * 0.42;
+
+          layers.add(
+            Transform.translate(
+              offset: Offset(
+                ui.lerpDouble(stackOffsetX, fanOffsetX, t)!,
+                ui.lerpDouble(stackOffsetY, fanOffsetY, t)!,
+              ),
+              child: Transform.rotate(
+                angle: ui.lerpDouble(stackAngle, fanAngle, t)!,
+                child: Transform.scale(
+                  scale: ui.lerpDouble(stackScale, 0.92, t)!,
+                  child: Opacity(
+                    opacity: ui.lerpDouble(stackOpacity, 1.0, t)!,
+                    child: _SwapCard(
+                      width: cardWidth,
+                      height: cardHeight,
+                      item: item,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Center(
+          child: SizedBox(
+            width: cardWidth,
+            height: cardHeight,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: layers,
             ),
           ),
         );
@@ -359,13 +549,17 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
             icon: Icons.close_rounded,
             label: 'Still to do',
             color: Colors.orangeAccent,
-            onPressed: _isSaving ? null : () => _saveDecision(false),
+            onPressed: _isSaving || _isShuffling
+                ? null
+                : () => _saveDecision(false),
           ),
           _DecisionButton(
             icon: Icons.check_rounded,
             label: 'Done',
             color: Colors.greenAccent,
-            onPressed: _isSaving ? null : () => _saveDecision(true),
+            onPressed: _isSaving || _isShuffling
+                ? null
+                : () => _saveDecision(true),
           ),
         ],
       ),
@@ -583,35 +777,48 @@ class _StackedPreviewCard extends StatelessWidget {
   final double width;
   final double height;
   final _QuickSwipeItem item;
+  final double wobble;
 
   const _StackedPreviewCard({
     required this.depth,
     required this.width,
     required this.height,
     required this.item,
+    required this.wobble,
   });
+
+  /// Extra tilt layered on top of the card's own persistent [wobble] so a
+  /// stack of several cards visibly fans out. Zero at depth 1 on purpose:
+  /// that's the position a card is promoted from, so its angle (wobble +
+  /// this bonus) must be identical the instant before and after promotion.
+  static double fanBonusForDepth(int depth) => switch (depth) {
+    1 => 0.0,
+    2 => 0.035,
+    _ => -0.035,
+  };
+
+  static double offsetXForDepth(int depth) => switch (depth) {
+    1 => -6.0,
+    2 => 10.0,
+    _ => -8.0,
+  };
+
+  static double offsetYForDepth(int depth) => depth * 7.0;
+
+  static double scaleForDepth(int depth) => 1 - (depth * 0.018);
+
+  static double opacityForDepth(int depth) => 1 - (depth * 0.11);
 
   @override
   Widget build(BuildContext context) {
-    final angle = switch (depth) {
-      1 => -0.035,
-      2 => 0.05,
-      _ => -0.065,
-    };
-    final horizontalOffset = switch (depth) {
-      1 => -4.0,
-      2 => 7.0,
-      _ => -5.0,
-    };
-
     return Transform.translate(
-      offset: Offset(horizontalOffset, depth * 7.0),
+      offset: Offset(offsetXForDepth(depth), offsetYForDepth(depth)),
       child: Transform.rotate(
-        angle: angle,
+        angle: wobble + fanBonusForDepth(depth),
         child: Transform.scale(
-          scale: 1 - (depth * 0.018),
+          scale: scaleForDepth(depth),
           child: Opacity(
-            opacity: 1 - (depth * 0.11),
+            opacity: opacityForDepth(depth),
             child: IgnorePointer(
               child: _SwapCard(width: width, height: height, item: item),
             ),
