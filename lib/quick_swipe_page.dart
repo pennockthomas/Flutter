@@ -437,6 +437,13 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
   }
 }
 
+/// Product illustrations keyed by their checklist label. Only a handful of
+/// items have real artwork so far (see `tool/generate_product_icons.py`);
+/// everything else falls back to the generic eco icon in [_SwapCard].
+const Map<String, String> _productIllustrations = {
+  'Stainless steel lunch box': 'assets/products/metal_lunchbox.png',
+};
+
 class _SwapCard extends StatelessWidget {
   final double width;
   final double height;
@@ -488,11 +495,7 @@ class _SwapCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                const Icon(
-                  Icons.eco_rounded,
-                  color: Colors.greenAccent,
-                  size: 72,
-                ),
+                _ProductGlyph(assetPath: _productIllustrations[item.label]),
                 const SizedBox(height: 24),
                 Text(
                   item.label,
@@ -559,6 +562,35 @@ class _SwapCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shows the product illustration for an item when one exists, otherwise
+/// falls back to the generic eco glyph used for everything else.
+class _ProductGlyph extends StatelessWidget {
+  final String? assetPath;
+
+  const _ProductGlyph({this.assetPath});
+
+  @override
+  Widget build(BuildContext context) {
+    if (assetPath == null) {
+      return const Icon(
+        Icons.eco_rounded,
+        color: Colors.greenAccent,
+        size: 72,
+      );
+    }
+    return Image.asset(
+      assetPath!,
+      width: 84,
+      height: 84,
+      errorBuilder: (context, error, stackTrace) => const Icon(
+        Icons.eco_rounded,
+        color: Colors.greenAccent,
+        size: 72,
       ),
     );
   }

@@ -33,3 +33,4 @@ flutter:
     - assets/background.jpg
     - assets/data/challenge.json
     - assets/sounds/
+    - assets/products/

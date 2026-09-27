@@ -308,6 +308,13 @@ Verified with focused `flutter analyze` (no issues), `git diff --check`, and the
 Files: `lib/quick_swipe_page.dart`, `AI_LOG.md`
 Commit: 19ee8aa
 
+## 2026-09-27 — First real product illustration, wired into QuickSwipe
+
+Started on per-product artwork for checklist items (user wants simple illustrations for the ~118 products eventually). Drew a flat "stainless steel lunch box" icon with `tool/generate_product_icons.py` (Pillow, same drawn-not-photographed approach as the app icon) and added `assets/products/metal_lunchbox.png`. `quick_swipe_page.dart` now has a `_productIllustrations` map (checklist label → asset path) and a `_ProductGlyph` widget that shows the matched artwork or falls back to the generic eco glyph — so this can be filled in gradually, one label at a time, without needing all items illustrated at once. First (only) entry maps the real checklist label `"Stainless steel lunch box"` (under Kitchen → Food Storage).
+
+Files: `tool/generate_product_icons.py`, `assets/products/metal_lunchbox.png`, `lib/quick_swipe_page.dart`, `pubspec.yaml`, `AI_LOG.md`
+Commit: (pending)
+
 ---
 
 ## Roadmap ("make the whole app function as advertised, not just bug-free")
