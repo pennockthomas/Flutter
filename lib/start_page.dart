@@ -65,7 +65,49 @@ class _StartScreenState extends State<StartScreen>
   final double maxLinkDistance = 200.0;
   final double targetLinkDistance = 120.0;
 
-  double _backgroundScale = 1.2;
+  double _backgroundScale = 1.3;
+  Offset _backgroundOffset = Offset.zero;
+
+  /// Parallax: the forest drifts a little as you pan, so moving the tree
+  /// feels like moving through a space instead of sliding stickers over a
+  /// fixed photo. Driven by which canvas point sits at the screen center
+  /// (not the raw translation, which jumps around while pinch-zooming) and
+  /// eased with tanh so it saturates inside the image's spare edge instead
+  /// of revealing the black behind it.
+  static const double _parallaxStrength = 0.08; // screen px per canvas px
+  void _updateBackgroundForCamera() {
+    if (!mounted) return;
+    final matrix = _transformController.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final translation = matrix.getTranslation();
+    final screen = MediaQuery.sizeOf(context);
+    final centerOnCanvas = Offset(
+      (screen.width / 2 - translation.x) / scale,
+      (screen.height / 2 - translation.y) / scale,
+    );
+    final fromHome = centerOnCanvas - Offset(canvasSize / 2, canvasSize / 2);
+
+    final backgroundScale = (1.3 + (scale - 1.0) * 0.15).clamp(1.2, 1.9);
+    // Room the zoomed image has beyond each screen edge, minus a margin.
+    final spareX = screen.width * (backgroundScale - 1) / 2 - 4;
+    final spareY = screen.height * (backgroundScale - 1) / 2 - 4;
+    double ease(double value, double limit) =>
+        limit * _tanh(-value * _parallaxStrength / limit);
+
+    setState(() {
+      _backgroundScale = backgroundScale;
+      _backgroundOffset = Offset(
+        ease(fromHome.dx, spareX),
+        ease(fromHome.dy, spareY),
+      );
+    });
+  }
+
+  static double _tanh(double x) {
+    final e2x = math.exp(2 * x.clamp(-20.0, 20.0));
+    return (e2x - 1) / (e2x + 1);
+  }
+
   final double collapsedSize = 100.0;
   final double expandedSize = 220.0;
   final math.Random _random = math.Random();
@@ -108,12 +150,7 @@ class _StartScreenState extends State<StartScreen>
           }
         });
 
-    _transformController.addListener(() {
-      double scale = _transformController.value.getMaxScaleOnAxis();
-      setState(() {
-        _backgroundScale = 1.2 + (scale - 1.0) * 0.15;
-      });
-    });
+    _transformController.addListener(_updateBackgroundForCamera);
   }
 
   void _onChallengesChanged() {
@@ -369,15 +406,40 @@ class _StartScreenState extends State<StartScreen>
     );
   }
 
+  // Physics in real units (px, px/s, seconds), so it behaves the same at
+  // 60 Hz and 120 Hz — the app allows ProMotion refresh rates. Repulsion and
+  // spring keep the ratio of the old per-frame constants (600 : 0.09), so
+  // the tree settles into the same shape; the damping is what changed. The
+  // old per-frame 0.45 bled off ~48/s — so overdamped that motion died
+  // within a few frames and nothing felt like it had any mass. Around 12/s
+  // it glides and settles with a little give instead.
+  static const double _repulsion = 670000; // accel = _repulsion / distance
+  static const double _springStiffness = 100; // per s², per px of stretch
+  static const double _damping = 12; // velocity decays by e^(-_damping * dt)
+  static const double _reducedMotionDamping = 30; // ~critical: no bounce
+  static const double _maxFlingSpeed = 2500; // px/s, when a bubble is let go
+
+  Duration? _lastPhysicsTick;
+  int? _draggedIndex;
+
   void _updatePhysics(Duration elapsed) {
-    if (isLoading || nodes.isEmpty) return;
+    final lastTick = _lastPhysicsTick;
+    _lastPhysicsTick = elapsed;
+    if (isLoading || nodes.isEmpty || lastTick == null) return;
+    // Clamped so a dropped frame or a resumed ticker can't cause a big jump.
+    final dt = ((elapsed - lastTick).inMicroseconds / 1e6).clamp(0.0, 1 / 30);
+    if (dt == 0) return;
+    final damping = AppSettings.reducedMotion.value
+        ? _reducedMotionDamping
+        : _damping;
+
     setState(() {
       for (int i = 0; i < nodes.length; i++) {
         for (int j = 0; j < nodes.length; j++) {
           if (i == j) continue;
           Offset diff = nodes[i].position - nodes[j].position;
           double dist = diff.distance.clamp(1.0, 1000.0);
-          nodes[i].velocity += (diff / dist) * (600.0 / dist);
+          nodes[i].velocity += (diff / dist) * (_repulsion / dist * dt);
         }
       }
 
@@ -385,7 +447,9 @@ class _StartScreenState extends State<StartScreen>
         Node n1 = nodes[conn[0]], n2 = nodes[conn[1]];
         Offset diff = n1.position - n2.position;
         double dist = diff.distance;
-        Offset force = (diff / dist) * ((dist - targetLinkDistance) * 0.09);
+        Offset force =
+            (diff / dist) *
+            ((dist - targetLinkDistance) * _springStiffness * dt);
         if (!n1.isFixed) n1.velocity -= force;
         if (!n2.isFixed) n2.velocity += force;
 
@@ -401,9 +465,14 @@ class _StartScreenState extends State<StartScreen>
       }
 
       Node? expandedNode;
-      for (var node in nodes) {
-        if (!node.isFixed) node.position += node.velocity;
-        node.velocity *= 0.45;
+      final decay = math.exp(-damping * dt);
+      for (int i = 0; i < nodes.length; i++) {
+        final node = nodes[i];
+        // A bubble held under a finger goes where the finger puts it.
+        if (!node.isFixed && i != _draggedIndex) {
+          node.position += node.velocity * dt;
+        }
+        node.velocity *= decay;
         if (node.isExpanded) expandedNode = node;
       }
 
@@ -435,13 +504,16 @@ class _StartScreenState extends State<StartScreen>
         children: [
           // Background Image
           Positioned.fill(
-            child: Transform.scale(
-              scale: _backgroundScale,
-              child: Image.asset(
-                'assets/background.jpg',
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) =>
-                    Container(color: Colors.blueGrey[900]),
+            child: Transform.translate(
+              offset: _backgroundOffset,
+              child: Transform.scale(
+                scale: _backgroundScale,
+                child: Image.asset(
+                  'assets/background.jpg',
+                  fit: BoxFit.cover,
+                  errorBuilder: (c, e, s) =>
+                      Container(color: Colors.blueGrey[900]),
+                ),
               ),
             ),
           ),
@@ -672,10 +744,21 @@ class _StartScreenState extends State<StartScreen>
           left: node.position.dx - (animSize / 2),
           top: node.position.dy - (animSize / 2),
           child: GestureDetector(
+            onPanStart: (_) => setState(() => _draggedIndex = idx),
             onPanUpdate: (d) => setState(() {
               node.position += d.delta;
               node.velocity = Offset.zero;
             }),
+            onPanEnd: (d) => setState(() {
+              _draggedIndex = null;
+              // Let go with the throw's speed so the bubble carries on and
+              // eases to a stop. The gesture's velocity is in screen pixels;
+              // node positions are in (zoomed) canvas units.
+              final scale = _transformController.value.getMaxScaleOnAxis();
+              final fling = d.velocity.clampMagnitude(0, _maxFlingSpeed);
+              node.velocity = fling.pixelsPerSecond / scale;
+            }),
+            onPanCancel: () => setState(() => _draggedIndex = null),
             onTap: () {
               setState(() {
                 if (node.isExpanded) {
@@ -692,196 +775,207 @@ class _StartScreenState extends State<StartScreen>
                 }
               });
             },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                node.isExpanded ? 30 : animSize / 2,
-              ),
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: Container(
-                  width: animSize,
-                  height: animSize,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: isStartNode && !node.isExpanded
-                        ? LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.greenAccent.withOpacity(0.26),
-                              Colors.green.withOpacity(0.22),
-                              Colors.amberAccent.withOpacity(0.12),
-                            ],
-                          )
-                        : null,
-                    color: isStartNode && !node.isExpanded
-                        ? null
-                        : node.status == NodeStatus.completed
-                        ? Colors.green.withOpacity(0.15)
-                        : Colors.white.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(
-                      node.isExpanded ? 30 : animSize / 2,
-                    ),
-                    border: Border.all(
+            // Picked-up feedback: the held bubble lifts slightly.
+            child: AnimatedScale(
+              scale: _draggedIndex == idx && !AppSettings.reducedMotion.value
+                  ? 1.08
+                  : 1.0,
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOut,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  node.isExpanded ? 30 : animSize / 2,
+                ),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  child: Container(
+                    width: animSize,
+                    height: animSize,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: isStartNode && !node.isExpanded
+                          ? LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.greenAccent.withOpacity(0.26),
+                                Colors.green.withOpacity(0.22),
+                                Colors.amberAccent.withOpacity(0.12),
+                              ],
+                            )
+                          : null,
                       color: isStartNode && !node.isExpanded
-                          ? Colors.greenAccent.withOpacity(0.72)
+                          ? null
                           : node.status == NodeStatus.completed
-                          ? Colors.green.withOpacity(0.4)
-                          : Colors.white.withOpacity(0.25),
-                      width: isStartNode && !node.isExpanded ? 2.2 : 1.0,
+                          ? Colors.green.withOpacity(0.15)
+                          : Colors.white.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(
+                        node.isExpanded ? 30 : animSize / 2,
+                      ),
+                      border: Border.all(
+                        color: isStartNode && !node.isExpanded
+                            ? Colors.greenAccent.withOpacity(0.72)
+                            : node.status == NodeStatus.completed
+                            ? Colors.green.withOpacity(0.4)
+                            : Colors.white.withOpacity(0.25),
+                        width: isStartNode && !node.isExpanded ? 2.2 : 1.0,
+                      ),
+                      boxShadow: isStartNode && !node.isExpanded
+                          ? [
+                              BoxShadow(
+                                color: Colors.greenAccent.withOpacity(0.24),
+                                blurRadius: 28,
+                                spreadRadius: 4,
+                              ),
+                              BoxShadow(
+                                color: Colors.amberAccent.withOpacity(0.12),
+                                blurRadius: 44,
+                                spreadRadius: 10,
+                              ),
+                            ]
+                          : null,
                     ),
-                    boxShadow: isStartNode && !node.isExpanded
-                        ? [
-                            BoxShadow(
-                              color: Colors.greenAccent.withOpacity(0.24),
-                              blurRadius: 28,
-                              spreadRadius: 4,
-                            ),
-                            BoxShadow(
-                              color: Colors.amberAccent.withOpacity(0.12),
-                              blurRadius: 44,
-                              spreadRadius: 10,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Center(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: node.showContent
-                          ? FadingEdgeScrollView(
-                              key: const ValueKey("expanded"),
-                              fadeExtent: 18,
-                              child: SingleChildScrollView(
-                                physics: const BouncingScrollPhysics(),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      node.label,
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      challenge?.description ?? "...",
-                                      textAlign: TextAlign.center,
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                    if (checklist.isNotEmpty) ...[
-                                      const SizedBox(height: 8),
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: node.showContent
+                            ? FadingEdgeScrollView(
+                                key: const ValueKey("expanded"),
+                                fadeExtent: 18,
+                                child: SingleChildScrollView(
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
                                       Text(
-                                        "Checklist $completedItems/${checklist.length}",
+                                        node.label,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          color: Colors.greenAccent,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      SizedBox(
-                                        height: 34,
-                                        width: 160,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white24,
-                                            foregroundColor: Colors.white,
-                                            padding: EdgeInsets.zero,
-                                            textStyle: const TextStyle(
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                          onPressed: () =>
-                                              _openChecklistScreen(node.label),
-                                          child: const Text("Open Checklist"),
+                                      Text(
+                                        challenge?.description ?? "...",
+                                        textAlign: TextAlign.center,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 10,
                                         ),
                                       ),
-                                    ],
-                                    const SizedBox(height: 8),
-                                    if (!node.hasSpawnedChildren)
-                                      SizedBox(
-                                        height: 34,
-                                        width: 160,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white24,
-                                            foregroundColor: Colors.white,
-                                            padding: EdgeInsets.zero,
-                                            textStyle: const TextStyle(
-                                              fontSize: 11,
-                                            ),
+                                      if (checklist.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          "Checklist $completedItems/${checklist.length}",
+                                          style: const TextStyle(
+                                            color: Colors.greenAccent,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
                                           ),
-                                          onPressed: () => _spawnNextTier(idx),
-                                          child: const Text("Unlock Tier"),
                                         ),
-                                      )
-                                    else
-                                      const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
-                                        size: 30,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            )
-                          : Container(
-                              alignment: Alignment.center,
-                              key: const ValueKey("collapsed"),
-                              width: double.infinity,
-                              height: double.infinity,
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                  ),
-                                  child: isStartNode
-                                      ? Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: const [
-                                            Icon(
-                                              Icons.eco_rounded,
-                                              color: Colors.greenAccent,
-                                              size: 28,
-                                            ),
-                                            SizedBox(height: 6),
-                                            Text(
-                                              "Start",
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.bold,
-                                                height: 1.1,
+                                        const SizedBox(height: 6),
+                                        SizedBox(
+                                          height: 34,
+                                          width: 160,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.white24,
+                                              foregroundColor: Colors.white,
+                                              padding: EdgeInsets.zero,
+                                              textStyle: const TextStyle(
+                                                fontSize: 11,
                                               ),
                                             ),
-                                          ],
-                                        )
-                                      : Text(
-                                          node.label,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 3,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w500,
-                                            height: 1.2,
+                                            onPressed: () =>
+                                                _openChecklistScreen(
+                                                  node.label,
+                                                ),
+                                            child: const Text("Open Checklist"),
                                           ),
                                         ),
+                                      ],
+                                      const SizedBox(height: 8),
+                                      if (!node.hasSpawnedChildren)
+                                        SizedBox(
+                                          height: 34,
+                                          width: 160,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.white24,
+                                              foregroundColor: Colors.white,
+                                              padding: EdgeInsets.zero,
+                                              textStyle: const TextStyle(
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                            onPressed: () =>
+                                                _spawnNextTier(idx),
+                                            child: const Text("Unlock Tier"),
+                                          ),
+                                        )
+                                      else
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                          size: 30,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                alignment: Alignment.center,
+                                key: const ValueKey("collapsed"),
+                                width: double.infinity,
+                                height: double.infinity,
+                                child: Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    child: isStartNode
+                                        ? Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                Icons.eco_rounded,
+                                                color: Colors.greenAccent,
+                                                size: 28,
+                                              ),
+                                              SizedBox(height: 6),
+                                              Text(
+                                                "Start",
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 17,
+                                                  fontWeight: FontWeight.bold,
+                                                  height: 1.1,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            node.label,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.2,
+                                            ),
+                                          ),
+                                  ),
                                 ),
                               ),
-                            ),
+                      ),
                     ),
                   ),
                 ),

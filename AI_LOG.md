@@ -477,6 +477,21 @@ Thomas: "the main page is the unlock tree with a taskbar below" — then chose 3
 
 Files: `lib/app_shell.dart`, `lib/profile_avatar_button.dart`, `lib/main.dart`, `lib/start_page.dart`, `lib/quick_swipe_page.dart`, `lib/progress_register_page.dart`, `lib/profile_page.dart`, `lib/intro_page.dart`, `test/widget_test.dart`
 
+## 2026-09-27 — Tree interaction: weight, momentum, parallax
+
+Thomas: "using the tree feels a bit off... moving it doesn't feel like it has any weight." Four causes found in `start_page.dart`:
+
+1. **Background never moved when panning** — only scaled with zoom — so bubbles slid over a fixed photo. Now a parallax offset driven by which canvas point is at screen center (not raw translation, which jumps while pinch-zooming), eased with tanh so it saturates inside the image's spare edge. Base background scale 1.2 → 1.3 for room. Constant: `_parallaxStrength = 0.08`.
+2. **Massively overdamped physics**: per-frame `velocity *= 0.45` ≈ 48/s decay, so all motion died in ~5 frames. Now damping 12/s (slight give/settle); 30/s (≈ critical, no bounce) when Reduce Motion is on.
+3. **Physics was per-frame, not per-second**, while `CADisableMinimumFrameDurationOnPhone` allows 120 Hz — behaviour differed by refresh rate. Now dt-based (px, px/s), dt clamped to 1/30s. Repulsion/spring converted from the old per-frame constants keeping their ratio (600 : 0.09 → 670000 : 100 per s²), so the settled tree shape is unchanged.
+4. **Dragged bubbles had no momentum** (stopped dead on release). Now keep the fling velocity (screen px/s ÷ zoom, capped at 2500 px/s), and the held bubble lifts to 1.08× (off under Reduce Motion). The physics doesn't move a bubble that's under a finger.
+
+Not changed, noted for later: while a bubble is expanded, the physics tick re-centres the camera on it every frame, so you can't pan until you close it. The O(n²) per-frame physics (known issue 11) is unchanged, but it now pauses on other tabs via `TickerMode`.
+
+Feel is subjective — tuning constants are grouped at the top of the physics code. Verified: analyzer clean, 33 tests pass, runs on the simulator without errors; the feel itself is for Thomas to judge.
+
+Files: `lib/start_page.dart`
+
 ---
 
 ## Known issues not yet fixed
