@@ -2,6 +2,15 @@ import 'package:flutter/material.dart';
 
 /// Softens the hard viewport edge of a vertical scroll view. The fade only
 /// appears on an edge when more content exists beyond that edge.
+///
+/// Implemented as a gradient scrim drawn *on top* of the scroll view rather
+/// than a `ShaderMask` wrapping it. A `ShaderMask` forces its child onto its
+/// own offscreen compositing layer, which cuts off any `BackdropFilter`
+/// inside that child from the real backdrop behind it (the background photo
+/// painted as an earlier sibling in the page's Stack) — its blur ends up
+/// sampling that isolated, nearly-blank layer instead, which is why glass
+/// panels inside a scrolling list looked far less blurred than identical
+/// panels elsewhere on the same screen. A plain overlay has no such effect.
 class FadingEdgeScrollView extends StatefulWidget {
   final Widget child;
   final double fadeExtent;
@@ -62,30 +71,56 @@ class _FadingEdgeScrollViewState extends State<FadingEdgeScrollView> {
           }
           return false;
         },
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (!_showTopFade && !_showBottomFade) return widget.child;
-
-            final height = constraints.maxHeight;
-            final fadeFraction = height.isFinite && height > 0
-                ? (widget.fadeExtent / height).clamp(0.0, 0.18)
-                : 0.06;
-            return ShaderMask(
-              blendMode: BlendMode.dstIn,
-              shaderCallback: (bounds) => LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  _showTopFade ? Colors.transparent : Colors.white,
-                  Colors.white,
-                  Colors.white,
-                  _showBottomFade ? Colors.transparent : Colors.white,
-                ],
-                stops: [0, fadeFraction, 1 - fadeFraction, 1],
-              ).createShader(bounds),
-              child: widget.child,
-            );
-          },
+        child: Stack(
+          children: [
+            widget.child,
+            if (_showTopFade)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: widget.fadeExtent,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Theme.of(context).scaffoldBackgroundColor,
+                          Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (_showBottomFade)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: widget.fadeExtent,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Theme.of(context).scaffoldBackgroundColor,
+                          Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

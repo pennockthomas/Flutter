@@ -379,6 +379,20 @@ Not done yet (later sub-phases, see Phase 3 scoping above): 3b (cloud sync of pr
 
 Files: `lib/main.dart`, `lib/auth_service.dart`, `lib/sign_in_page.dart`, `lib/profile_page.dart`, `lib/firebase_options.dart`, `ios/Runner/GoogleService-Info.plist`, `ios/Runner/Runner.entitlements`, `ios/Runner.xcodeproj/project.pbxproj`, `firebase.json`, `pubspec.yaml`
 
+## 2026-09-27 — Sign In button styling; found and fixed why glass panels blurred inconsistently
+
+Two small follow-ups from testing Phase 3a, then one real bug found by Thomas eyeballing screenshots side by side.
+
+**Sign In button** (Profile's Account card): added 12px of spacing before it and switched it to a white background / dark text per feedback — it was sitting flush against the text next to it and used the default (purple) `FilledButton` theme color.
+
+**Glass panel inconsistency — root cause found.** Thomas noticed some glass panels (Profile, Friends, Settings, Progress Register) looked distinctly more see-through than others (the Start-menu buttons, the expanded node card, the "Local Profile" sub-page, the checklist header). Several rounds of tuning opacity/blur/darkness numbers on the affected panels didn't fix it — because the numbers were never actually the problem. The real cause: **`FadingEdgeScrollView`** (the shared scroll-edge-fade widget, used on every list-based screen) wrapped its child in a `ShaderMask`. A `ShaderMask` forces its child onto its own isolated offscreen compositing layer — so any `BackdropFilter` living *inside* that child (i.e. every glass panel inside a scrolling list) could only blur that isolated, nearly-blank layer instead of the real background photo painted behind it as an earlier sibling. Panels that happened to sit outside a `FadingEdgeScrollView`'s child (the Start-menu buttons, the expanded tree node, the sub-settings page — which wraps the fade *inside* its own already-blurred panel rather than the other way around) were never affected, which is exactly the pattern Thomas spotted by comparing screenshots.
+
+Fixed by rewriting `fading_edge_scroll_view.dart` to render the edge fade as a plain gradient overlay drawn *on top of* the scroll content instead of a `ShaderMask` wrapping it — same visual fade, no compositing isolation. No panel's own blur/opacity values needed to change from their original settings once this was fixed (confirmed by diffing back to nearly their pre-session values). Also restored `AppBackgroundOverlay(fallbackDarkness: 0.32)` on Profile/Friends/Progress Register (briefly tried matching the Start menu's lighter `0.2` while chasing the wrong cause — 0.32 is correct, matching the other detail screens like the checklist view).
+
+Lesson for future glass-panel work: if a panel still looks off, check whether it's a descendant of `FadingEdgeScrollView` (or any other `ShaderMask`/`Opacity`/`ColorFiltered` ancestor) before touching its own blur/color values.
+
+Files: `lib/fading_edge_scroll_view.dart`, `lib/profile_page.dart`, `lib/friends_page.dart`, `lib/progress_register_page.dart`, `lib/settings.dart`
+
 ---
 
 ## Known issues not yet fixed

@@ -113,7 +113,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(color: Colors.blueGrey[900]),
             ),
           ),
-          const AppBackgroundOverlay(fallbackDarkness: 0.36),
+          const AppBackgroundOverlay(fallbackDarkness: 0.32),
           SafeArea(
             child: _isLoading
                 ? const Center(
@@ -206,8 +206,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
+              if (user == null) const SizedBox(width: 12),
               if (user == null)
                 FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black87,
+                  ),
                   onPressed: () {
                     Navigator.push(context, appPageRoute(const SignInPage()));
                   },

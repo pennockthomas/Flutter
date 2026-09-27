@@ -175,7 +175,7 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
                   Container(color: Colors.blueGrey[900]),
             ),
           ),
-          const AppBackgroundOverlay(fallbackDarkness: 0.36),
+          const AppBackgroundOverlay(fallbackDarkness: 0.32),
           SafeArea(
             child: _isLoading
                 ? const Center(
@@ -349,10 +349,10 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withOpacity(0.12),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white24),
             ),

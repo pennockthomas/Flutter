@@ -67,7 +67,7 @@ class FriendsPage extends StatelessWidget {
                   Container(color: Colors.blueGrey[900]),
             ),
           ),
-          const AppBackgroundOverlay(fallbackDarkness: 0.36),
+          const AppBackgroundOverlay(fallbackDarkness: 0.32),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,7 +214,7 @@ class _FriendProfilePage extends StatelessWidget {
                   Container(color: Colors.blueGrey[900]),
             ),
           ),
-          const AppBackgroundOverlay(fallbackDarkness: 0.36),
+          const AppBackgroundOverlay(fallbackDarkness: 0.32),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
