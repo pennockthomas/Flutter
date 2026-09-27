@@ -284,24 +284,6 @@ class _QuickSwipePageState extends State<QuickSwipePage> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              _DirectionHint(
-                icon: Icons.close_rounded,
-                label: 'Still to do',
-                color: Colors.orangeAccent,
-              ),
-              _DirectionHint(
-                icon: Icons.check_rounded,
-                label: 'Already done',
-                color: Colors.greenAccent,
-              ),
-            ],
-          ),
-        ),
         Expanded(child: _buildCardDeck()),
         _buildDecisionButtons(),
       ],
@@ -676,29 +658,6 @@ class _SwipeGlassCard extends StatelessWidget {
           child: child,
         ),
       ),
-    );
-  }
-}
-
-class _DirectionHint extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _DirectionHint({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: color, fontSize: 13)),
-      ],
     );
   }
 }

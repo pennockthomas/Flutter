@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // ✅ Added for sound
+import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_settings.dart';
 import 'app_page_route.dart';
 import 'app_user.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
+import 'firebase_options.dart';
 import 'notifications.dart';
 import 'playground.dart';
 import 'profile_page.dart';
@@ -16,7 +18,15 @@ import 'quick_swipe_page.dart';
 import 'settings.dart';
 import 'start_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    // Accounts/sync are additive — the app must stay fully usable offline
+    // even if Firebase can't be reached (no network, misconfigured project).
+    debugPrint('Firebase init failed, continuing in local-only mode: $e');
+  }
   runApp(const MyApp());
 }
 

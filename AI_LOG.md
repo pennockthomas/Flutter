@@ -335,7 +335,49 @@ Agreed 2026-09-26, after the initial bug-fix/code-quality pass was done. The goa
 
 **Phase 3 — Real accounts + Friends/Sharing backend (3–5 days, a different order of magnitude).** Choosing a backend (Firebase/Supabase is the fast path), building sign-up/sign-in, a real data model for friends + shared progress, an add-friend/invite flow, replacing the 3 hardcoded mock friends in `friends_page.dart`, and wiring the three "Share X Progress" toggles to something real. Cloud Sync (Privacy & Security) piggybacks on the same backend. **Not started - needs its own explicit go-ahead before starting, since it changes the app from "local personal tool" to "has a backend and other people's data" (hosting, privacy, cost).**
 
+### Phase 3 scoping (2026-09-27)
+
+Decided: **Firebase** (Firestore + Firebase Auth via FlutterFire) — fastest to stand up solo, generous free tier for a small friend group, real-time listeners fit "see a friend's progress update" naturally. Auth: **Sign in with Apple + email/password** fallback.
+
+Breaking Phase 3 into independently-shippable sub-phases so it isn't all-or-nothing:
+
+- **3a. Auth (~0.5–1 day).** Add `firebase_core` + `firebase_auth`, `GoogleService-Info.plist`/Firebase iOS config, Sign in with Apple entitlement, a sign-in/sign-up screen, session persistence. App still works fully offline/local if not signed in — accounts are additive, not required to use the checklist.
+- **3b. Cloud sync of own progress (~0.5 day).** On every `ChallengeStore.save()`, also write a lightweight summary (`totalItems`, `completedItems`, per-category counts) to `users/{uid}/progress`. Local JSON file stays the source of truth on-device; Firestore is a mirror for friends to read, not a replacement data layer.
+- **3c. Friend graph (~1 day).** Each account gets a short generated `friendCode` (e.g. 6 chars) shown in Profile. Adding a friend = entering their code → write a `friendRequests` doc → they accept/reject → `users/{uid}/friends/{friendUid}` on both sides. No email/SMS/push infra needed for MVP.
+- **3d. Real friend screens (~0.5 day).** `friends_page.dart` reads the signed-in user's friend list + each friend's progress doc from Firestore instead of the hardcoded `_friends` list — same UI, real data.
+- **3e. Wire sharing/privacy toggles (~0.5 day).** The existing "Share Total/Category/Checked-Items Progress" intent (currently just static "Not connected" info rows in Settings) becomes real toggles that gate exactly what gets written to the shared progress doc.
+- **Stretch, not in the estimate:** push notifications for friend requests/milestones — needs APNs setup, treat as a later addition once 3a–3e are stable.
+
+Total: ~3–4 days, in line with the original estimate. Data lives in Firestore under `users/{uid}` (profile + friendCode), `users/{uid}/progress` (synced summary), `users/{uid}/friends/{friendUid}` (accepted), `friendRequests/{id}` (pending). Security rules restrict a progress doc to being readable only by accepted friends + the owner.
+
 Rough total if everything gets built: ~1–2 days for Phases 0–2 (now mostly spent), plus 3–5 days for Phase 3 if it happens.
+
+---
+
+## 2026-09-27 — QuickSwipe: removed redundant direction-hint row
+
+The row of "✕ Still to do / ✓ Already done" labels above the card deck duplicated the decision buttons already shown at the bottom of the screen. Removed the row (and the now-unused `_DirectionHint` widget) — the bottom buttons and the in-card drag stamps already communicate the same thing.
+
+Files: `lib/quick_swipe_page.dart`
+
+## 2026-09-27 — Phase 3a: Firebase Auth (Sign in with Apple + email/password)
+
+First slice of Phase 3 built and verified booting on the simulator (build succeeds, no crash, `flutter analyze` clean).
+
+- Created a Firebase project (`ecosteps-d60b6`) via the console, registered the iOS app under the existing bundle ID `com.thomaspennock.ecosteps`, downloaded `GoogleService-Info.plist` into `ios/Runner/`.
+- Installed `flutterfire_cli` and `firebase-tools` locally (no `sudo` — used `dart pub global activate` and an npm user-prefix install; the system Ruby was too old to build the `xcodeproj` gem `flutterfire configure` needs, so installed that gem against Homebrew's Ruby instead). Ran `flutterfire configure --project=ecosteps-d60b6 --platforms=ios`, which generated `lib/firebase_options.dart` and wired `GoogleService-Info.plist` into the Xcode project's Resources build phase automatically.
+- Added `firebase_core`, `firebase_auth`, `sign_in_with_apple`, `crypto` to `pubspec.yaml`; ran `pod install`.
+- `main.dart`: `main()` is now `async`, calls `Firebase.initializeApp()` before `runApp()`. Wrapped in try/catch — if Firebase can't be reached, the app logs and continues in local-only mode rather than crashing. Accounts are additive, never required.
+- Added `ios/Runner/Runner.entitlements` (`com.apple.developer.applesignin`) and wired `CODE_SIGN_ENTITLEMENTS` into all three Runner build configs in `project.pbxproj`. Still needs the matching capability enabled on the App ID in the Apple Developer portal for Sign in with Apple to work outside the Simulator (Thomas to do — account/portal access, not something I can do).
+- `lib/auth_service.dart` (new): singleton wrapping `FirebaseAuth` — email/password sign-in & registration, password reset, Sign in with Apple (nonce-based, verified through Firebase), and a `messageFor()` helper that turns `FirebaseAuthException`/Apple errors into short user-facing strings.
+- `lib/sign_in_page.dart` (new): sign-in/create-account screen matching the app's existing glass-panel style — native Apple button, divider, email/password form with a sign-in/register toggle. Closing it without signing in changes nothing.
+- `lib/profile_page.dart`: added an Account card at the top (`StreamBuilder<User?>` on `authStateChanges`) showing "Not signed in" + a Sign In button, or the signed-in email/name + Sign Out.
+
+Known limitation: Sign in with Apple in the iOS Simulator needs a signed-in (test) Apple ID on the Simulator itself and can be flaky there regardless — email/password is the reliable path to test end-to-end pre-device.
+
+Not done yet (later sub-phases, see Phase 3 scoping above): 3b (cloud sync of progress), 3c (friend graph), 3d (real friend screens), 3e (wire sharing toggles).
+
+Files: `lib/main.dart`, `lib/auth_service.dart`, `lib/sign_in_page.dart`, `lib/profile_page.dart`, `lib/firebase_options.dart`, `ios/Runner/GoogleService-Info.plist`, `ios/Runner/Runner.entitlements`, `ios/Runner.xcodeproj/project.pbxproj`, `firebase.json`, `pubspec.yaml`
 
 ---
 

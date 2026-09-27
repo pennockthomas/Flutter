@@ -1,13 +1,16 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
 import 'app_page_route.dart';
 import 'app_user.dart';
+import 'auth_service.dart';
 import 'challenge_model.dart';
 import 'challenge_store.dart';
 import 'friends_page.dart';
 import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
+import 'sign_in_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -135,6 +138,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: ListView(
                             padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
                             children: [
+                              _buildAccountCard(),
+                              const SizedBox(height: 14),
                               _buildProfileCard(),
                               const SizedBox(height: 14),
                               _buildFriendsCard(),
@@ -151,6 +156,75 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAccountCard() {
+    return StreamBuilder<User?>(
+      stream: AuthService.instance.authStateChanges,
+      initialData: AuthService.instance.currentUser,
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        return GlassPanel(
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Icon(
+                  user == null ? Icons.person_outline : Icons.check_circle,
+                  color: user == null ? Colors.white70 : Colors.greenAccent,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user == null ? 'Not signed in' : 'Signed in',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      user == null
+                          ? 'Sign in to sync progress & add friends'
+                          : (user.email ?? user.displayName ?? 'Apple account'),
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (user == null)
+                FilledButton(
+                  onPressed: () {
+                    Navigator.push(context, appPageRoute(const SignInPage()));
+                  },
+                  child: const Text('Sign In'),
+                )
+              else
+                TextButton(
+                  onPressed: () => AuthService.instance.signOut(),
+                  child: const Text(
+                    'Sign Out',
+                    style: TextStyle(color: Colors.orangeAccent),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
