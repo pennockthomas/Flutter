@@ -47,9 +47,9 @@ const _slides = [
   _IntroSlide(
     Icons.check_circle_rounded,
     'Count what you already do',
-    'Already own some of these? Tick them off in QuickSwipe or the Progress '
-        'Register, so your progress starts where you are. Everything stays '
-        'on your phone unless you sign in.',
+    'Already own some of these? Tick them off on the QuickSwipe or Progress '
+        'tabs, so your progress starts where you are. Everything stays on '
+        'your phone unless you sign in.',
   ),
 ];
 

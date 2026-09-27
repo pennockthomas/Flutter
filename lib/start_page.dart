@@ -12,6 +12,7 @@ import 'challenge_store.dart';
 import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
 import 'notifications.dart';
+import 'profile_avatar_button.dart';
 
 enum NodeStatus { available, completed }
 
@@ -502,30 +503,12 @@ class _StartScreenState extends State<StartScreen>
             ),
 
           // ✅ Top Left: Go Back Button (Settings Style)
+          // The tree is the app's main tab, so there's no back button; the
+          // profile avatar takes the top-right corner like on the other tabs.
           Positioned(
-            top: 50,
-            left: 10,
-            child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-                size: 28,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-
-          // ✅ Top Right: Reset Button
-          Positioned(
-            top: 50,
-            right: 20,
-            child: Opacity(
-              opacity: 0.5,
-              child: IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white, size: 28),
-                onPressed: _confirmResetProgress,
-              ),
-            ),
+            top: MediaQuery.paddingOf(context).top + 8,
+            right: 16,
+            child: const ProfileAvatarButton(),
           ),
 
           _buildProgressMenu(),
@@ -537,7 +520,8 @@ class _StartScreenState extends State<StartScreen>
   Widget _buildProgressMenu() {
     int totalLevel = categories.values.fold(0, (sum, val) => sum + val);
     return Positioned(
-      bottom: 20,
+      // Bottom padding includes the app's tab bar, which floats over this page.
+      bottom: 20 + MediaQuery.paddingOf(context).bottom,
       right: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -623,6 +607,16 @@ class _StartScreenState extends State<StartScreen>
                                   color: Colors.greenAccent,
                                   fontWeight: FontWeight.bold,
                                 ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: _confirmResetProgress,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.orangeAccent,
+                                  padding: EdgeInsets.zero,
+                                ),
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: const Text("Reset progress"),
                               ),
                             ],
                           ),

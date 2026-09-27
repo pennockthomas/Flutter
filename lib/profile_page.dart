@@ -11,6 +11,7 @@ import 'friends_page.dart';
 import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
 import 'progress_summary.dart';
+import 'settings.dart';
 import 'sign_in_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -89,14 +90,31 @@ class _ProfilePageState extends State<ProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(left: 10, top: 10),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          onPressed: () => Navigator.pop(context),
+                        padding: const EdgeInsets.fromLTRB(10, 10, 12, 0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            IconButton(
+                              tooltip: 'Settings',
+                              icon: const Icon(
+                                Icons.settings_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              onPressed: () => Navigator.push(
+                                context,
+                                appPageRoute(const SettingsScreen()),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       Expanded(

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'app_settings.dart';
 import 'challenge_store.dart';
 import 'glass_panel.dart';
+import 'profile_avatar_button.dart';
 
 class QuickSwipePage extends StatefulWidget {
   const QuickSwipePage({super.key});
@@ -62,7 +63,29 @@ class _QuickSwipePageState extends State<QuickSwipePage>
   @override
   void initState() {
     super.initState();
+    ChallengeStore.instance.addListener(_onChallengesChanged);
     _loadItems();
+  }
+
+  /// This page stays alive as a tab, so items checked off on the Tree or
+  /// Progress tabs need reflecting here. Only completion state is refreshed;
+  /// the review order and position are kept. Skipped mid-save, since
+  /// [_saveDecision] updates its own item once the save finishes.
+  void _onChallengesChanged() {
+    if (!mounted || _isSaving || _items.isEmpty) return;
+    final challenges = ChallengeStore.instance.challenges;
+    setState(() {
+      _items = [
+        for (final item in _items)
+          item.copyWith(
+            isCompleted:
+                challenges[item.challengeId]?.checklist
+                    .elementAtOrNull(item.itemIndex)
+                    ?.isCompleted ??
+                item.isCompleted,
+          ),
+      ];
+    });
   }
 
   Future<void> _loadItems() async {
@@ -204,6 +227,7 @@ class _QuickSwipePageState extends State<QuickSwipePage>
 
   @override
   void dispose() {
+    ChallengeStore.instance.removeListener(_onChallengesChanged);
     _shuffleController.dispose();
     super.dispose();
   }
@@ -239,19 +263,9 @@ class _QuickSwipePageState extends State<QuickSwipePage>
   Widget _buildHeader() {
     final reviewed = math.min(_currentIndex, _items.length);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 18, 6),
+      padding: const EdgeInsets.fromLTRB(20, 8, 16, 6),
       child: Row(
         children: [
-          IconButton(
-            tooltip: 'Back',
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Colors.white,
-              size: 28,
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const SizedBox(width: 8),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,6 +310,8 @@ class _QuickSwipePageState extends State<QuickSwipePage>
               ),
             ),
           ],
+          const SizedBox(width: 12),
+          const ProfileAvatarButton(),
         ],
       ),
     );

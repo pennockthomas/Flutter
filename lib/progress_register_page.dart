@@ -7,6 +7,7 @@ import 'challenge_model.dart';
 import 'challenge_store.dart';
 import 'fading_edge_scroll_view.dart';
 import 'notifications.dart';
+import 'profile_avatar_button.dart';
 
 class ProgressRegisterPage extends StatefulWidget {
   const ProgressRegisterPage({super.key});
@@ -184,15 +185,11 @@ class _ProgressRegisterPageState extends State<ProgressRegisterPage> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 10, top: 10),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          onPressed: () => Navigator.pop(context),
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(20, 8, 16, 0),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: ProfileAvatarButton(),
                         ),
                       ),
                       Padding(
