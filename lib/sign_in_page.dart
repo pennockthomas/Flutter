@@ -8,6 +8,14 @@ import 'glass_panel.dart';
 /// Sign-in / create-account screen. Purely additive: closing this without
 /// signing in leaves the app exactly as usable as before (local-only).
 class SignInPage extends StatefulWidget {
+  /// Apple's personal (free) developer teams don't support the Sign In with
+  /// Apple capability on a real device at all — only a paid Apple Developer
+  /// Program membership does. Flip this back to `true` (and restore
+  /// `CODE_SIGN_ENTITLEMENTS` in the three Runner build configs in
+  /// `ios/Runner.xcodeproj/project.pbxproj`) once that's in place; nothing
+  /// else needs to change, `AuthService.signInWithApple()` is untouched.
+  static const bool appleSignInAvailable = false;
+
   const SignInPage({super.key});
 
   @override
@@ -135,37 +143,39 @@ class _SignInPageState extends State<SignInPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              SignInWithAppleButton(
-                                onPressed: _isSubmitting
-                                    ? () {}
-                                    : _submitAppleSignIn,
-                                style: SignInWithAppleButtonStyle.white,
-                                borderRadius: BorderRadius.circular(14),
-                                height: 48,
-                              ),
-                              const SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Divider(color: Colors.white24),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
+                              if (SignInPage.appleSignInAvailable) ...[
+                                SignInWithAppleButton(
+                                  onPressed: _isSubmitting
+                                      ? () {}
+                                      : _submitAppleSignIn,
+                                  style: SignInWithAppleButtonStyle.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  height: 48,
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  children: [
+                                    const Expanded(
+                                      child: Divider(color: Colors.white24),
                                     ),
-                                    child: Text(
-                                      'or',
-                                      style: TextStyle(
-                                        color: Colors.white54,
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                      ),
+                                      child: Text(
+                                        'or',
+                                        style: TextStyle(
+                                          color: Colors.white54,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Expanded(
-                                    child: Divider(color: Colors.white24),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
+                                    const Expanded(
+                                      child: Divider(color: Colors.white24),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                              ],
                               Form(
                                 key: _formKey,
                                 child: Column(

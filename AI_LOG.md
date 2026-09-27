@@ -407,6 +407,18 @@ Real fix: gave each card slot a **persistent per-position tilt** (`_itemWobble`,
 
 Files: `lib/quick_swipe_page.dart`
 
+## 2026-09-27 — Sign in with Apple disabled for now; first install on Thomas's iPhone
+
+Installing on a physical iPhone failed: Thomas's Apple ID is on a free Personal Team, and Apple doesn't allow the Sign in with Apple capability on free teams at all (not a portal setting — a platform restriction; the Simulator doesn't enforce it, which is why it worked there). Thomas chose to hide it behind a flag rather than archive the code:
+
+- `SignInPage.appleSignInAvailable = false` hides the Apple button and its "or" divider. `AuthService.signInWithApple()` and `Runner.entitlements` are untouched.
+- Removed `CODE_SIGN_ENTITLEMENTS` from the three Runner build configs in `project.pbxproj` — this is what actually unblocks the device build; the flag only hides the UI.
+- **To re-enable** once on a paid Apple Developer Program membership: flip the flag to `true` and re-add `CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;` to the three Runner configs.
+
+Device install notes: a `flutter run` debug build dies when the cable is unplugged (the debugger session owns the process) — use `flutter run --release -d <device>` for a build that runs standalone. The debug build's "could not access the local network" warning is macOS Local Network permission for the terminal, only needed for hot reload on-device.
+
+Files: `lib/sign_in_page.dart`, `ios/Runner.xcodeproj/project.pbxproj`
+
 ---
 
 ## Known issues not yet fixed
