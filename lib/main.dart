@@ -13,7 +13,11 @@ import 'notifications.dart';
 import 'progress_sync.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Keep iOS's native launch screen up until StartupScreen can draw its
+  // first frame with the background photo already decoded — otherwise the
+  // launch screen is followed by a few blank frames. StartupScreen calls
+  // allowFirstFrame() once the photo is ready.
+  WidgetsFlutterBinding.ensureInitialized().deferFirstFrame();
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     ProgressSync.instance.start();
@@ -79,11 +83,35 @@ class _StartupScreenState extends State<StartupScreen>
       curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
     );
 
-    // ✅ Fire the sound and animation
-    _playStartupSound();
     BackgroundMusicController.instance.syncWithSettings();
     AppSettings.loadReducedMotion();
     NotificationService.instance.syncDailyReminders();
+  }
+
+  bool _precacheStarted = false;
+  bool _firstFrameAllowed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_precacheStarted) return;
+    _precacheStarted = true;
+    // Decode the photo before the first frame (see main()). The timeout is
+    // a safety net: never leave the app stuck on the launch screen.
+    precacheImage(const AssetImage('assets/background.jpg'), context)
+        .timeout(const Duration(seconds: 2), onTimeout: () {})
+        .whenComplete(_begin);
+  }
+
+  /// Shows the first frame, then starts the sound and animation, so they
+  /// begin when the splash is actually visible rather than behind the
+  /// native launch screen.
+  void _begin() {
+    if (_firstFrameAllowed) return;
+    _firstFrameAllowed = true;
+    WidgetsBinding.instance.allowFirstFrame();
+    if (!mounted) return;
+    _playStartupSound();
     _controller.forward();
     _startupTimer = Timer(const Duration(milliseconds: 4200), _goToHome);
   }

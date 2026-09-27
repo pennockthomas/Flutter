@@ -491,6 +491,21 @@ Not changed, noted for later: while a bubble is expanded, the physics tick re-ce
 Feel is subjective — tuning constants are grouped at the top of the physics code. Verified: analyzer clean, 33 tests pass, runs on the simulator without errors; the feel itself is for Thomas to judge.
 
 Files: `lib/start_page.dart`
+Commit: f1df17b
+
+## 2026-09-27 — Seamless startup: no more white → black → splash
+
+Thomas: on launch you saw a white screen, then black, then the startup screen. Three phases: (1) the native iOS launch screen was still Flutter's white template; (2) StartupScreen's first frames drew before `assets/background.jpg` (3840×2160) had decoded, so only its dark Scaffold colour showed; (3) then the photo and leaf animation.
+
+- `LaunchScreen.storyboard`: background #0A0F0A (StartupScreen's colour), image view pinned to all edges with aspect-fill (native equivalent of `BoxFit.cover`).
+- `tool/generate_launch_image.py` (new): pre-blends the background photo at 30% over #0A0F0A — exactly what StartupScreen draws — into `LaunchImage.imageset` (single 1920×1080 PNG, ~2.2 MB; replaces Flutter's placeholder). Re-run if the background or splash colours change.
+- `main()` calls `deferFirstFrame()`; StartupScreen precaches the photo in `didChangeDependencies`, then `allowFirstFrame()` and only then starts the sound, animation and 4.2s timer (the sound used to play behind the white screen). 2-second timeout so a failed decode can't leave the app stuck on the launch screen.
+
+iOS caches launch screens: to see a change on a device/simulator, delete the app first (reinstalling from `flutter run` isn't enough). The simulator copy was uninstalled to test this, which reset its local data.
+
+Verified: analyzer clean, 33 tests pass, fresh install launches without errors. The visual transition itself is for Thomas to confirm on a cold start.
+
+Files: `ios/Runner/Base.lproj/LaunchScreen.storyboard`, `ios/Runner/Assets.xcassets/LaunchImage.imageset/`, `tool/generate_launch_image.py`, `lib/main.dart`
 
 ---
 
