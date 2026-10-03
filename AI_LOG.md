@@ -565,6 +565,21 @@ Verified on the new address in a real browser from clean storage: intro, Profile
 
 Files: `firebase.json`
 
+## 2026-10-03 — Stable ids for checklist items (step 1 of per-account sync)
+
+Thomas wants swaps stored per account so progress follows them between devices. Plan (agreed in chat, nothing built beyond this step): one Firestore doc `users/{uid}/progress/state` holding done-swaps as `itemId → timestamp` (unticking = timestamped "undone"), merged per item newest-wins, plus the unlocked tiers; local store stays the source of truth; pull-merge-push on sign-in; snapshot listener into `ChallengeStore`; per-account local data if a different account signs in. This entry is step 1: ids.
+
+Why ids: a swap was identified only by its label (editable in Playground) or its list position (changes on add/remove). Neither can be matched across devices.
+
+- `ChecklistItem.id` (required). Seed items now spell out readable ids in `assets/data/challenge.json` (118 items, `kitchen.metal-knives` style: slug of challenge + slug of label; the seed file's items changed from bare strings to `{"id","label"}`). Seed items without an id still get the same derived id at load (`ChecklistItem.derivedId`). Items added in Playground get a random `u-…` id (`ChecklistItem.create`).
+- **Migration** (`ChallengeRepository._assignItemIds`, runs in `loadChallenges`): a saved item with no id (old bare-string or map format) takes the id of the seed item with the same label in the same challenge, so existing ticks and the shared identity are kept; anything else (user-added or reworded) gets a fresh random id. Present ids are kept; a repeated id (hand-edited/double import) is replaced, so ids are unique across the whole catalog. The load already rewrites the file, so the ids are persisted straight away. Imports of old exports are migrated on the next load.
+- Known limit: an item the user reworded *before* this update can't be matched to its seed item, so it gets a user id and would not line up with the same swap on another device. Renames after this update keep the id.
+- Nothing reads the ids yet (QuickSwipe still finds items by challenge + index); they're groundwork for the sync merge.
+
+Tests: 5 new in `test/challenge_repository_test.dart` (seed ids unique/readable; legacy save keeps ticks and gains ids; ids stable across reloads; repeated id replaced; rename keeps id). 44 total, all passing; analyzer unchanged (55 existing infos, no new). Not run on a device/simulator.
+
+Files: `lib/challenge_model.dart`, `lib/challenge_repository.dart`, `lib/playground.dart`, `assets/data/challenge.json`, `test/challenge_repository_test.dart`, `test/challenge_model_test.dart`, `test/progress_summary_test.dart`
+
 ---
 
 ## Known issues not yet fixed

@@ -17,7 +17,11 @@ Challenge _challenge(
     unlocks: unlocks,
     checklist: [
       for (var i = 0; i < items.length; i++)
-        ChecklistItem(label: '$label $i', isCompleted: items[i]),
+        ChecklistItem(
+          id: '$label.$i',
+          label: '$label $i',
+          isCompleted: items[i],
+        ),
     ],
   );
 }
@@ -68,7 +72,14 @@ void main() {
   });
 
   test('no Start challenge means no areas', () {
-    expect(progressByArea(_tree([_challenge('Kitchen', items: [true])])), []);
+    expect(
+      progressByArea(
+        _tree([
+          _challenge('Kitchen', items: [true]),
+        ]),
+      ),
+      [],
+    );
   });
 
   test('summary has totals and areas but no item names', () {

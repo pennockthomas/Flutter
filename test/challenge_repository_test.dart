@@ -259,4 +259,123 @@ void main() {
       expect(await repository.importFromJson(cycle), isFalse);
     });
   });
+  group('checklist item ids', () {
+    Future<void> plant(Object file) async {
+      final path = await repository.editableFilePath();
+      await File(path).writeAsString(jsonEncode(file));
+    }
+
+    Map<String, dynamic> challenge(String id, List<Object> checklist) => {
+      'id': id,
+      'description': '',
+      'unlocks': <String>[],
+      'checklist': checklist,
+    };
+
+    List<ChecklistItem> allItems(Map<String, Challenge> challenges) => [
+      for (final c in challenges.values) ...c.checklist,
+    ];
+
+    test('every seed item has a unique, readable id', () async {
+      final challenges = await repository.loadChallenges();
+      final ids = allItems(challenges).map((item) => item.id).toList();
+
+      expect(ids, isNotEmpty);
+      expect(ids.every((id) => id.isNotEmpty), isTrue);
+      expect(ids.toSet().length, ids.length);
+      expect(ids, contains('kitchen.metal-knives'));
+    });
+
+    test(
+      'a save from before ids existed keeps its ticks and gains ids',
+      () async {
+        await repository.loadChallenges(); // creates the file path's directory
+        await plant([
+          {
+            'id': 'Start',
+            'description': '',
+            'unlocks': ['Kitchen'],
+            'checklist': <String>[],
+          },
+          challenge('Kitchen', [
+            'Metal knives', // oldest format: bare string
+            {'label': 'Wooden spoons', 'completed': true},
+            {'label': 'My own gadget', 'completed': true}, // user-added
+          ]),
+        ]);
+
+        final kitchen = (await repository.loadChallenges())['Kitchen']!;
+        final byLabel = {for (final i in kitchen.checklist) i.label: i};
+
+        expect(byLabel['Metal knives']!.id, 'kitchen.metal-knives');
+        expect(byLabel['Wooden spoons']!.id, 'kitchen.wooden-spoons');
+        expect(byLabel['Wooden spoons']!.isCompleted, isTrue);
+        expect(byLabel['My own gadget']!.id, startsWith('u-'));
+        expect(byLabel['My own gadget']!.isCompleted, isTrue);
+      },
+    );
+
+    test('ids are stable across reloads', () async {
+      await repository.loadChallenges();
+      await plant([
+        {
+          'id': 'Start',
+          'description': '',
+          'unlocks': ['Kitchen'],
+          'checklist': <String>[],
+        },
+        challenge('Kitchen', [
+          {'label': 'My own gadget', 'completed': false},
+        ]),
+      ]);
+
+      final first = await repository.loadChallenges();
+      final second = await repository.loadChallenges();
+
+      expect(
+        second['Kitchen']!.checklist.map((i) => i.id),
+        first['Kitchen']!.checklist.map((i) => i.id),
+      );
+    });
+
+    test('a repeated id is replaced so ids stay unique', () async {
+      await repository.loadChallenges();
+      await plant([
+        {
+          'id': 'Start',
+          'description': '',
+          'unlocks': ['Kitchen'],
+          'checklist': <String>[],
+        },
+        challenge('Kitchen', [
+          {'id': 'same', 'label': 'One', 'completed': false},
+          {'id': 'same', 'label': 'Two', 'completed': false},
+        ]),
+      ]);
+
+      final items = (await repository.loadChallenges())['Kitchen']!.checklist;
+
+      expect(items[0].id, 'same');
+      expect(items[1].id, isNot('same'));
+    });
+
+    test('a renamed item keeps its id', () async {
+      final seed = await repository.loadChallenges();
+      final kitchen = seed['Kitchen']!;
+      final renamed = kitchen.checklist.first.copyWith(label: 'Steel knives');
+      await repository.saveChallenges(
+        {
+          ...seed,
+          'Kitchen': kitchen.copyWith(
+            checklist: [renamed, ...kitchen.checklist.skip(1)],
+          ),
+        }.values,
+      );
+
+      final reloaded = (await repository.loadChallenges())['Kitchen']!;
+
+      expect(reloaded.checklist.first.id, kitchen.checklist.first.id);
+      expect(reloaded.checklist.first.label, 'Steel knives');
+    });
+  });
 }

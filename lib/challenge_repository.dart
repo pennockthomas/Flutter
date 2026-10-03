@@ -21,8 +21,8 @@ class ChallengeRepository {
       'challenge_editor.pre_import_backup.json';
 
   Future<Map<String, Challenge>> loadChallenges() async {
-    final seedChallenges = _decodeChallenges(
-      await rootBundle.loadString(seedAssetPath),
+    final seedChallenges = _withSeedItemIds(
+      _decodeChallenges(await rootBundle.loadString(seedAssetPath)),
     );
 
     final savedText = await _store.read(editableFileName);
@@ -37,7 +37,7 @@ class ChallengeRepository {
     final saved = _decodeChallengeFile(savedText);
     final mergedChallenges = _mergeSeedDefaults(
       seedChallenges: seedChallenges,
-      editableChallenges: saved.challenges,
+      editableChallenges: _assignItemIds(saved.challenges, seedChallenges),
       previouslySeenSeedIds: saved.seenSeedIds,
     );
 
@@ -158,6 +158,76 @@ class ChallengeRepository {
       challenges[id] = Challenge.fromJson(map);
     }
     return challenges;
+  }
+
+  /// Seed items that don't spell out an id get one derived from their
+  /// challenge and label, so the same seed gives the same ids on every device.
+  Map<String, Challenge> _withSeedItemIds(Map<String, Challenge> seed) {
+    return {
+      for (final entry in seed.entries)
+        entry.key: entry.value.copyWith(
+          checklist: [
+            for (final item in entry.value.checklist)
+              item.hasId
+                  ? item
+                  : item.copyWith(
+                      id: ChecklistItem.derivedId(entry.key, item.label),
+                    ),
+          ],
+        ),
+    };
+  }
+
+  /// Migration for saves from before items had ids. An item with no id takes
+  /// the id of the seed item with the same label in the same challenge, so
+  /// the swaps people already have keep a shared identity; anything else (an
+  /// item the user added or reworded) gets a fresh one. Ids already present
+  /// are kept, except that a repeated id (a hand-edited or doubly imported
+  /// file) is replaced so every id is unique across the whole catalog.
+  Map<String, Challenge> _assignItemIds(
+    Map<String, Challenge> challenges,
+    Map<String, Challenge> seedChallenges,
+  ) {
+    final reserved = <String>{
+      for (final challenge in challenges.values)
+        for (final item in challenge.checklist)
+          if (item.hasId) item.id,
+    };
+    final used = <String>{};
+
+    String fresh() {
+      var id = ChecklistItem.newId();
+      while (reserved.contains(id) || used.contains(id)) {
+        id = ChecklistItem.newId();
+      }
+      return id;
+    }
+
+    final result = <String, Challenge>{};
+    for (final entry in challenges.entries) {
+      final seedItems = seedChallenges[entry.key]?.checklist ?? const [];
+      final items = <ChecklistItem>[];
+      for (final item in entry.value.checklist) {
+        String id;
+        if (item.hasId) {
+          id = used.contains(item.id) ? fresh() : item.id;
+        } else {
+          final match = seedItems
+              .where(
+                (seedItem) =>
+                    seedItem.label == item.label &&
+                    !reserved.contains(seedItem.id) &&
+                    !used.contains(seedItem.id),
+              )
+              .firstOrNull;
+          id = match?.id ?? fresh();
+        }
+        used.add(id);
+        items.add(item.copyWith(id: id));
+      }
+      result[entry.key] = entry.value.copyWith(checklist: items);
+    }
+    return result;
   }
 
   void _validateChallengeGraph(Map<String, Challenge> challenges) {

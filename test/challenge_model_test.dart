@@ -19,8 +19,8 @@ void main() {
         description: '',
         unlocks: [],
         checklist: [
-          ChecklistItem(label: 'Metal knives', isCompleted: true),
-          ChecklistItem(label: 'Wooden spoons', isCompleted: false),
+          ChecklistItem(id: 'k.knives', label: 'Metal knives', isCompleted: true),
+          ChecklistItem(id: 'k.spoons', label: 'Wooden spoons', isCompleted: false),
         ],
       );
       expect(challenge.isFullyCompleted, isFalse);
@@ -32,8 +32,8 @@ void main() {
         description: '',
         unlocks: [],
         checklist: [
-          ChecklistItem(label: 'Metal knives', isCompleted: true),
-          ChecklistItem(label: 'Wooden spoons', isCompleted: true),
+          ChecklistItem(id: 'k.knives', label: 'Metal knives', isCompleted: true),
+          ChecklistItem(id: 'k.spoons', label: 'Wooden spoons', isCompleted: true),
         ],
       );
       expect(challenge.isFullyCompleted, isTrue);

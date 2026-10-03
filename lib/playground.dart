@@ -230,7 +230,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen>
         label: challenge.copyWith(
           checklist: [
             ...challenge.checklist,
-            ChecklistItem(label: cleanedLabel),
+            ChecklistItem.create(cleanedLabel),
           ],
         ),
       };
