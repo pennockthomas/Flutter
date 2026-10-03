@@ -532,7 +532,7 @@ Tests: 6 new (`test/prefs_text_store_test.dart`: the store, plus the repository'
 - The UI is phone-designed and stretches on a wide window; no width cap or responsive layout yet.
 - Sign in with Apple stays off. Not deployed anywhere; hosting is a separate decision (and Firebase Auth's authorised domains would need the live domain).
 - `flutter build web` warns `flutter_timezone`'s web code isn't WebAssembly-compatible (only matters for `--wasm` builds).
-- **Stray file change**: `analysis_options.yaml` keeps getting an `analyzer: exclude:` block (build, android, ios, web, windows, macos, linux) that I didn't write — first after `flutterfire configure`, then it reappeared (modified at exactly 18:30:00, so likely a scheduled/automatic process). I reverted it once; it came back. Left uncommitted — decide whether you want it.
+- **Stray file change**: `analysis_options.yaml` keeps getting an `analyzer: exclude:` block (build, android, ios, web, windows, macos, linux) that I didn't write — first after `flutterfire configure`, then it reappeared (modified at exactly 18:30:00, so likely a scheduled/automatic process). I reverted it once; it came back. Initially left uncommitted; Thomas then chose to keep it, so it was committed afterwards. It only stops the analyzer scanning generated and platform folders.
 
 Files: `lib/text_store.dart`, `lib/file_text_store.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/settings.dart`, `lib/auth_service.dart`, `lib/profile_page.dart`, `lib/notifications.dart`, `lib/start_page.dart`, `lib/firebase_options.dart`, `firebase.json`, `web/index.html`, `web/manifest.json`, `pubspec.lock`, `test/prefs_text_store_test.dart`
 
