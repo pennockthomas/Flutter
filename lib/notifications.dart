@@ -25,6 +25,11 @@ class NotificationService {
   static const bool _testDailyReminder =
       kDebugMode && bool.fromEnvironment('TEST_DAILY_REMINDER');
 
+  /// Notifications are iOS-only (that's all that's configured), and a
+  /// browser tab can't schedule a daily reminder, so on the web every call
+  /// does nothing and Settings hides the toggles.
+  static bool get isSupported => !kIsWeb;
+
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
@@ -42,7 +47,9 @@ class NotificationService {
       // crashing app startup over a timezone lookup failure.
     }
 
-    const settings = InitializationSettings(iOS: DarwinInitializationSettings());
+    const settings = InitializationSettings(
+      iOS: DarwinInitializationSettings(),
+    );
     await _plugin.initialize(settings);
     _initialized = true;
   }
@@ -51,7 +58,8 @@ class NotificationService {
     await _ensureInitialized();
     final granted = await _plugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
+          IOSFlutterLocalNotificationsPlugin
+        >()
         ?.requestPermissions(alert: true, badge: true, sound: true);
     return granted ?? false;
   }
@@ -60,6 +68,7 @@ class NotificationService {
   /// repeating reminder to match. Call at startup and whenever the
   /// Settings toggle changes.
   Future<void> syncDailyReminders() async {
+    if (!isSupported) return;
     await _ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool(AppSettingKeys.dailyReminders) ?? true;
@@ -103,6 +112,7 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
+    if (!isSupported) return;
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool(AppSettingKeys.milestoneAlerts) ?? true;
     if (!enabled) return;
@@ -124,8 +134,14 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOf({required int hour, required int minute}) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduled =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }

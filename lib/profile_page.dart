@@ -57,7 +57,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-
   List<ChecklistItem> get _completedExamples {
     return _challenges.values
         .expand((challenge) => challenge.checklist)
@@ -122,8 +121,10 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: ListView(
                             padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
                             children: [
-                              _buildAccountCard(),
-                              const SizedBox(height: 14),
+                              if (AuthService.instance.isAvailable) ...[
+                                _buildAccountCard(),
+                                const SizedBox(height: 14),
+                              ],
                               _buildProfileCard(),
                               const SizedBox(height: 14),
                               _buildFriendsCard(),

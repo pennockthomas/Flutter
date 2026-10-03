@@ -135,8 +135,6 @@ class _StartScreenState extends State<StartScreen>
     ChallengeStore.instance.addListener(_onChallengesChanged);
     _loadInitialData();
 
-    _transformController.value = Matrix4.identity()
-      ..translate(-(canvasSize / 2) + 200, -(canvasSize / 2) + 400);
 
     _physicsTicker = createTicker(_updatePhysics)..start();
 
@@ -151,6 +149,24 @@ class _StartScreenState extends State<StartScreen>
         });
 
     _transformController.addListener(_updateBackgroundForCamera);
+  }
+
+  bool _cameraPlaced = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_cameraPlaced) return;
+    _cameraPlaced = true;
+    // Start with the Start bubble (at the canvas center) in the middle of
+    // whatever screen this is — a phone, an iPad, a browser window. The
+    // 37px lift keeps it just above center, leaving room for the hint below.
+    final screen = MediaQuery.sizeOf(context);
+    _transformController.value = Matrix4.identity()
+      ..translate(
+        -(canvasSize / 2) + screen.width / 2,
+        -(canvasSize / 2) + screen.height / 2 - 37,
+      );
   }
 
   void _onChallengesChanged() {

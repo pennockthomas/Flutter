@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
@@ -39,9 +39,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportProgress() async {
     try {
-      final path = await ChallengeStore.instance.editableFilePath();
-      final file = File(path);
-      if (!await file.exists()) {
+      final jsonText = await ChallengeStore.instance.exportJson();
+      if (jsonText == null) {
         _showMessage('Nothing to export yet.');
         return;
       }
@@ -57,8 +56,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         screenSize.height,
       );
 
+      // Shared from memory rather than a file path, so it works the same on
+      // devices and in the browser (where a download is offered instead).
       await Share.shareXFiles(
-        [XFile(path)],
+        [
+          XFile.fromData(
+            utf8.encode(jsonText),
+            mimeType: 'application/json',
+            name: 'ecosteps-progress.json',
+          ),
+        ],
         subject: 'EcoSteps progress',
         sharePositionOrigin: sharePositionOrigin,
       );
@@ -72,11 +79,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
+        // Bytes, not a path: the browser has no file paths to give.
+        withData: true,
       );
-      final path = result?.files.single.path;
-      if (path == null) return;
+      final bytes = result?.files.single.bytes;
+      if (bytes == null) return;
 
-      final jsonText = await File(path).readAsString();
+      final jsonText = utf8.decode(bytes);
       if (!ChallengeStore.instance.isValidImportJson(jsonText)) {
         _showMessage(
           "That file isn't a valid EcoSteps export or contains a broken challenge tree.",
@@ -286,25 +295,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ],
                         ),
-                        _buildSettingsTile(
-                          context,
-                          Icons.notifications_active_outlined,
-                          "Notifications",
-                          [
-                            _SettingSwitchTile(
-                              label: "Daily Reminders",
-                              preferenceKey: AppSettingKeys.dailyReminders,
-                              defaultValue: true,
-                              onChanged: (_) => NotificationService.instance
-                                  .syncDailyReminders(),
-                            ),
-                            const _SettingSwitchTile(
-                              label: "Milestone Alerts",
-                              preferenceKey: AppSettingKeys.milestoneAlerts,
-                              defaultValue: true,
-                            ),
-                          ],
-                        ),
+                        if (NotificationService.isSupported)
+                          _buildSettingsTile(
+                            context,
+                            Icons.notifications_active_outlined,
+                            "Notifications",
+                            [
+                              _SettingSwitchTile(
+                                label: "Daily Reminders",
+                                preferenceKey: AppSettingKeys.dailyReminders,
+                                defaultValue: true,
+                                onChanged: (_) => NotificationService.instance
+                                    .syncDailyReminders(),
+                              ),
+                              const _SettingSwitchTile(
+                                label: "Milestone Alerts",
+                                preferenceKey: AppSettingKeys.milestoneAlerts,
+                                defaultValue: true,
+                              ),
+                            ],
+                          ),
                         // Playground can rename and delete challenges, so it's a
                         // developer tool: debug builds only, never in a release.
                         if (kDebugMode)

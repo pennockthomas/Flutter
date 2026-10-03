@@ -85,8 +85,9 @@ class ChallengeStore extends ChangeNotifier {
     });
   }
 
-  /// Path to the file backing the current save data, for exporting.
-  Future<String> editableFilePath() => _repository.editableFilePath();
+  /// The saved progress as JSON text, for exporting; null if nothing has
+  /// been saved yet.
+  Future<String?> exportJson() => _repository.exportJson();
 
   /// Replaces the saved data with [jsonText] if it's valid, then reloads so
   /// every screen picks up the imported data. Returns whether it succeeded.

@@ -1,11 +1,11 @@
 {
-    "name": "flut",
-    "short_name": "flut",
+    "name": "EcoSteps",
+    "short_name": "EcoSteps",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0A0F0A",
+    "theme_color": "#0A0F0A",
+    "description": "Swap plastic for things that last, one step at a time.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

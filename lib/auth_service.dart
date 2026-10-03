@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Thin wrapper around [FirebaseAuth]. Accounts are entirely additive to
@@ -15,9 +16,15 @@ class AuthService {
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
 
-  User? get currentUser => _auth.currentUser;
+  /// Whether Firebase started. It doesn't when the project isn't configured
+  /// for the platform or startup failed; the app then runs local-only and
+  /// accounts simply aren't offered.
+  bool get isAvailable => Firebase.apps.isNotEmpty;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  User? get currentUser => isAvailable ? _auth.currentUser : null;
+
+  Stream<User?> get authStateChanges =>
+      isAvailable ? _auth.authStateChanges() : Stream.value(null);
 
   Future<void> signOut() => _auth.signOut();
 
@@ -58,10 +65,9 @@ class AuthService {
       nonce: nonce,
     );
 
-    final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
-      rawNonce: rawNonce,
-    );
+    final oauthCredential = OAuthProvider(
+      'apple.com',
+    ).credential(idToken: appleCredential.identityToken, rawNonce: rawNonce);
 
     final userCredential = await _auth.signInWithCredential(oauthCredential);
 

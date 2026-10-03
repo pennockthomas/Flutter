@@ -1,33 +1,40 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'challenge_model.dart';
+import 'file_text_store.dart';
+import 'text_store.dart';
 
 class ChallengeRepository {
+  /// [store] defaults to the right one for the platform (files on devices,
+  /// browser storage on the web); tests pass their own.
+  ChallengeRepository({TextStore? store})
+    : _store = store ?? createDefaultTextStore();
+
+  final TextStore _store;
+
   static const String seedAssetPath = 'assets/data/challenge.json';
   static const String editableFileName = 'challenge_editor.json';
   static const String importBackupFileName =
       'challenge_editor.pre_import_backup.json';
 
   Future<Map<String, Challenge>> loadChallenges() async {
-    final file = await _editableChallengeFile();
     final seedChallenges = _decodeChallenges(
       await rootBundle.loadString(seedAssetPath),
     );
 
-    if (!await file.exists()) {
+    final savedText = await _store.read(editableFileName);
+    if (savedText == null) {
       await _writeChallengeFile(
-        file,
         seedChallenges.values,
         seedChallenges.keys.toSet(),
       );
       return seedChallenges;
     }
 
-    final saved = _decodeChallengeFile(await file.readAsString());
+    final saved = _decodeChallengeFile(savedText);
     final mergedChallenges = _mergeSeedDefaults(
       seedChallenges: seedChallenges,
       editableChallenges: saved.challenges,
@@ -39,20 +46,16 @@ class ChallengeRepository {
     // load just because its id is momentarily absent from the saved file.
     final updatedSeenSeedIds = {...saved.seenSeedIds, ...seedChallenges.keys};
 
-    await _writeChallengeFile(
-      file,
-      mergedChallenges.values,
-      updatedSeenSeedIds,
-    );
+    await _writeChallengeFile(mergedChallenges.values, updatedSeenSeedIds);
     return mergedChallenges;
   }
 
   Future<void> saveChallenges(Iterable<Challenge> challenges) async {
-    final file = await _editableChallengeFile();
-    final seenSeedIds = await file.exists()
-        ? _decodeChallengeFile(await file.readAsString()).seenSeedIds
+    final savedText = await _store.read(editableFileName);
+    final seenSeedIds = savedText != null
+        ? _decodeChallengeFile(savedText).seenSeedIds
         : <String>{};
-    await _writeChallengeFile(file, challenges, seenSeedIds);
+    await _writeChallengeFile(challenges, seenSeedIds);
   }
 
   /// Replaces the saved challenge data with [jsonText] if (and only if) it
@@ -62,14 +65,13 @@ class ChallengeRepository {
   Future<bool> importFromJson(String jsonText) async {
     if (!isValidImportJson(jsonText)) return false;
 
-    final file = await _editableChallengeFile();
-    final backupFile = await _importBackupFile();
-    if (await file.exists()) {
-      await _writeTextAtomically(backupFile, await file.readAsString());
-    } else if (await backupFile.exists()) {
-      await backupFile.delete();
+    final currentText = await _store.read(editableFileName);
+    if (currentText != null) {
+      await _store.write(importBackupFileName, currentText);
+    } else {
+      await _store.delete(importBackupFileName);
     }
-    await _writeTextAtomically(file, jsonText);
+    await _store.write(editableFileName, jsonText);
     return true;
   }
 
@@ -83,44 +85,37 @@ class ChallengeRepository {
     }
   }
 
-  Future<bool> hasImportBackup() async {
-    return (await _importBackupFile()).exists();
-  }
+  Future<bool> hasImportBackup() => _store.exists(importBackupFileName);
 
   Future<bool> restoreImportBackup() async {
-    final backupFile = await _importBackupFile();
-    if (!await backupFile.exists()) return false;
+    final backupText = await _store.read(importBackupFileName);
+    if (backupText == null) return false;
 
-    final backupText = await backupFile.readAsString();
     try {
       _decodeChallengeFile(backupText);
     } catch (_) {
       return false;
     }
 
-    await _writeTextAtomically(await _editableChallengeFile(), backupText);
+    await _store.write(editableFileName, backupText);
     return true;
   }
 
-  Future<void> resetEditableChallenges() async {
-    final file = await _editableChallengeFile();
-    if (await file.exists()) {
-      await file.delete();
-    }
-  }
+  Future<void> resetEditableChallenges() => _store.delete(editableFileName);
 
+  /// The saved progress as JSON text, for exporting; null if nothing has
+  /// been saved yet.
+  Future<String?> exportJson() => _store.read(editableFileName);
+
+  /// Path of the save file. Only exists when backed by real files, so this
+  /// is for tests that need to plant or inspect the file directly.
+  @visibleForTesting
   Future<String> editableFilePath() async {
-    return (await _editableChallengeFile()).path;
-  }
-
-  Future<File> _editableChallengeFile() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return File('${directory.path}/$editableFileName');
-  }
-
-  Future<File> _importBackupFile() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return File('${directory.path}/$importBackupFileName');
+    final store = _store;
+    if (store is! FileTextStore) {
+      throw UnsupportedError('This platform stores progress without a file.');
+    }
+    return store.pathFor(editableFileName);
   }
 
   Map<String, Challenge> _decodeChallenges(String jsonText) {
@@ -239,27 +234,17 @@ class ChallengeRepository {
   }
 
   Future<void> _writeChallengeFile(
-    File file,
     Iterable<Challenge> challenges,
     Set<String> seenSeedIds,
   ) async {
     const encoder = JsonEncoder.withIndent('  ');
-    await _writeTextAtomically(
-      file,
+    await _store.write(
+      editableFileName,
       encoder.convert({
         'seenSeedIds': seenSeedIds.toList()..sort(),
         'challenges': challenges.map((c) => c.toJson()).toList(),
       }),
     );
-  }
-
-  Future<void> _writeTextAtomically(File destination, String text) async {
-    final temporaryFile = File('${destination.path}.tmp');
-    if (await temporaryFile.exists()) {
-      await temporaryFile.delete();
-    }
-    await temporaryFile.writeAsString(text, flush: true);
-    await temporaryFile.rename(destination.path);
   }
 }
 
