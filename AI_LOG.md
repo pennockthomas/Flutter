@@ -509,6 +509,64 @@ Files: `ios/Runner/Base.lproj/LaunchScreen.storyboard`, `ios/Runner/Assets.xcass
 
 ---
 
+## 2026-10-03 — EcoSteps runs in the browser
+
+Thomas: "lets do the app in the browser." Earlier (2026-09-28) I'd found `flutter build web` succeeds but the app was broken at runtime: progress saving used `dart:io` `File`, which doesn't exist in a browser, so the tree came up empty and the console filled with errors. Now it runs.
+
+- **Storage seam** (`lib/text_store.dart`, `lib/file_text_store.dart`): `ChallengeRepository` needs only named JSON text blobs (read/write/exists/delete), so it now takes a `TextStore`. `FileTextStore` is the old behaviour unchanged (real files, `.tmp` + atomic rename). `PrefsTextStore` keeps each blob as a `SharedPreferences` string (`store.<name>`) → `localStorage` on the web. `createDefaultTextStore()` picks by `kIsWeb`. `editableFilePath()` is now `@visibleForTesting` and throws on the web store; new `exportJson()` replaces it for real use.
+- **Export/Import** (`settings.dart`) no longer pass file paths: export shares `XFile.fromData(...)` (a download in the browser), import reads `FilePicker` bytes (`withData: true`). `dart:io` now appears only in `file_text_store.dart`.
+- **Firebase on web**: ran `flutterfire configure --platforms=ios,web` — registered a web app in `ecosteps-d60b6` (`1:104386364831:web:6b9e9a27753b468b1329aa`), `firebase_options.dart` regenerated (iOS config untouched).
+- **Firebase-unavailable crash fixed**: `main()` promised the app stays usable if Firebase can't start, but Profile would have thrown (`FirebaseAuth.instance` without an app). `AuthService.isAvailable` (`Firebase.apps.isNotEmpty`) now guards `currentUser`/`authStateChanges`, and Profile hides the Account card when it's false.
+- **Notifications are a no-op on web** (`NotificationService.isSupported`), and Settings hides that section there; nothing in a browser tab can schedule a daily reminder.
+- **Tree camera**: the opening position was hard-coded for a 402pt-wide phone (`+200, +400`), putting the Start bubble off-centre on anything else. Now centred on the real screen size (`didChangeDependencies`) — fixes the browser and iPad.
+- Web page title/description/manifest said "flut" / "A new Flutter project"; now EcoSteps, with the manifest colours set to the splash's dark.
+
+Tests: 6 new (`test/prefs_text_store_test.dart`: the store, plus the repository's seed/save/reload and export→import→backup→restore flow on the browser store). 39 total, all passing; the existing file-store tests ran unchanged through the new interface.
+
+**Verified in a real browser** (release build served locally): intro → tree centred → open Start → Unlock Tier → reload → unlocked bubbles come back from `localStorage`; Profile and Settings render (no Notifications/Developer sections); no console errors. Started from cleared storage to confirm the app writes only the intro flag and the challenge data on its own (an earlier `unlocked_nodes` I saw was from my own click).
+
+**Not verified**: signing in / Firestore sync on web (needs an account, which I can't create); the browser export download and import file dialog; audio autoplay (browsers block sound until a tap); a rebuilt iOS device/simulator build (the changes are Dart-only; analyzer clean, tests pass).
+
+**Limitations to know**:
+- Browser progress lives in that browser's `localStorage`: separate from the phone, lost on "clear site data". The Firestore sync is one-way (a summary for friends), so it does not carry progress between devices; that needs the merge/conflict design in the P3 list.
+- The UI is phone-designed and stretches on a wide window; no width cap or responsive layout yet.
+- Sign in with Apple stays off. Not deployed anywhere; hosting is a separate decision (and Firebase Auth's authorised domains would need the live domain).
+- `flutter build web` warns `flutter_timezone`'s web code isn't WebAssembly-compatible (only matters for `--wasm` builds).
+- **Stray file change**: `analysis_options.yaml` keeps getting an `analyzer: exclude:` block (build, android, ios, web, windows, macos, linux) that I didn't write — first after `flutterfire configure`, then it reappeared (modified at exactly 18:30:00, so likely a scheduled/automatic process). I reverted it once; it came back. Left uncommitted — decide whether you want it.
+
+Files: `lib/text_store.dart`, `lib/file_text_store.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/settings.dart`, `lib/auth_service.dart`, `lib/profile_page.dart`, `lib/notifications.dart`, `lib/start_page.dart`, `lib/firebase_options.dart`, `firebase.json`, `web/index.html`, `web/manifest.json`, `pubspec.lock`, `test/prefs_text_store_test.dart`
+
+---
+
+## 2026-10-03 — Web app published on Firebase Hosting
+
+Thomas: "can you put it on a web app" → **https://ecosteps-d60b6.web.app** (free Spark plan, same Firebase project). This is **public**: anyone with the address can open and use it.
+
+- `firebase.json` got a `hosting` block: serves `build/web`, SPA rewrite to `/index.html`, and `Cache-Control: no-cache` on `/`, `/index.html`, `flutter_bootstrap.js`, `flutter_service_worker.js`, `version.json`, `main.dart.js` — those filenames never change between releases, so without it returning visitors keep running the previous version. The rule for `/` was added after the first release; the CDN's copy of that first response briefly showed `max-age=3600` and expires on its own (fresh requests already get `no-cache`).
+- Two releases were published this session (the second only added the `/` header rule).
+- **To update the live site:** rebuild with `flutter build web --release --no-wasm-dry-run`, then run the Firebase CLI's hosting deploy for project `ecosteps-d60b6`. Note that Claude Code's auto-mode safety check blocked one later command as a "production deploy" (a plain file edit whose text mentioned deploying), so expect to run deploys yourself or approve them.
+- Firebase Auth already authorises the default `web.app` / `firebaseapp.com` domains, so no console change was needed (a custom domain would need adding).
+
+Verified on the live address in a real browser, from cleared storage: the intro starts at slide 1, Profile loads with the Account card (so Firebase starts on the live domain), no console errors; response headers and `<title>EcoSteps</title>` checked with curl. (An intro that once opened on slide 2 in my test browser did not reproduce from clean storage — a test-pane artifact.) Not verified on the live site: sign-in and Firestore sync, Export/Import, audio.
+
+**What's live is the working tree at deploy time, not a commit** — the web changes from the previous entry were still uncommitted, so the live site isn't reproducible from git until they're committed.
+
+Things to know: anyone can create an email account in this Firebase project through the site (Firestore rules keep each account's data to itself, but there's no abuse protection such as App Check); the web app's Firebase API key is public by design. `build/web` is ~47 MB (mostly CanvasKit); Spark's free hosting allowance (10 GB stored, ~360 MB/day transfer) is plenty for personal use but would be felt if the link spread widely.
+
+Files: `firebase.json`
+
+## 2026-10-03 — Shorter web address: ecosteps.web.app
+
+Thomas didn't want "d60b6" in the address. The Firebase **project ID can't be changed**, and the default hosting site is always named after it, so instead created a second site in the same project: `firebase hosting:sites:create ecosteps` → **https://ecosteps.web.app** (also `ecosteps.firebaseapp.com`). Site names are claimed globally; "ecosteps" was free. `firebase.json` now has `"site": "ecosteps"` in the `hosting` block, so deploys go to the new site. Update with the same build/deploy steps as the previous entry.
+
+**The old address https://ecosteps-d60b6.web.app was switched off** at Thomas's request (`firebase hosting:disable --site ecosteps-d60b6`): it now answers 404 "Site Not Found", and `ecosteps.web.app` was confirmed still serving afterwards. It's reversible — deploying to that site again turns it back on. One thing to watch: the old site is the project's *default* hosting site, and Firebase serves its reserved auth pages (`/__/auth/action` for password-reset and email-verification links, `/__/auth/handler` for Google/Apple sign-in redirects) from the default domain `ecosteps-d60b6.firebaseapp.com`, which is also the `authDomain` in `firebase_options.dart`. Nothing in the app uses those yet (no password-reset UI, Apple sign-in is off), but when they're added, check they still work; if not, re-enable the default site with a minimal deploy, or switch the auth domain to the new site.
+
+Verified on the new address in a real browser from clean storage: intro, Profile with the Account card (Firebase starts), no console errors; `Cache-Control: no-cache` and the EcoSteps title via curl. Not verified: whether `ecosteps.web.app` is in Firebase Auth's authorised domains. Email/password sign-in doesn't depend on it, but password-reset links, and any future Google/Apple sign-in, do — check Firebase console → Authentication → Settings → Authorized domains if those misbehave. A custom domain (e.g. a purchased `.app`) is the only way to drop `.web.app`.
+
+Files: `firebase.json`
+
+---
+
 ## Known issues not yet fixed
 
 From a full-codebase review, roughly ranked by impact. Struck-through items are resolved above.

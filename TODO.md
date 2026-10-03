@@ -83,6 +83,17 @@ Smaller:
 
 Quick wins (roughly 15–30 minutes each): display-name field at sign-up (fixes the identity bug above), lock portrait, hide Playground in release, move reset into Settings, rename jargon, button press feedback.
 
+## P2 — Web version
+
+The app now runs in a browser (see `AI_LOG.md`, 2026-10-03); what's left before it's something to share:
+
+- [x] Make the app run in a browser (storage on `localStorage`, Firebase web config, notifications off, tree centred on any screen).
+- [ ] Layout for wide windows: the UI is phone-designed and stretches. Probably a centred max-width column on wide screens, or a proper responsive layout.
+- [ ] Verify in the browser: sign-in and the Firestore progress sync, the Export download and Import file dialog, and audio (browsers block sound until the first tap).
+- [x] Hosting: published 2026-10-03 at https://ecosteps.web.app (Firebase Hosting site `ecosteps`). The old https://ecosteps-d60b6.web.app was switched off. It was the project's default site, which Firebase also uses for its auth action pages — when adding password reset or Google/Apple sign-in, verify those links still work (see `AI_LOG.md`). Still open: confirm `ecosteps.web.app` is in Firebase Auth's authorised domains (matters for password-reset links); whether to keep it public; a custom domain; abuse protection (App Check) now that anyone can sign up. Commit the web changes so the live site matches git.
+- [ ] Browser progress is per-browser and lost on "clear site data" — consider a visible export reminder, and decide how it should reconcile with the phone (this is the P3 merge/conflict item: the current Firestore sync is one-way).
+- [ ] Decide `analysis_options.yaml`: an unrequested `analyzer: exclude:` block keeps being added by something (not me; see the log) — keep it or delete it for good.
+
 ## P2 — Verification before a wider iOS release
 
 - [ ] Add meaningful screen/integration coverage for checklist changes updating all open screens.
