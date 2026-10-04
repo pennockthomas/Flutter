@@ -606,6 +606,18 @@ Also found this session (no code): low frame rates in the simulator were a debug
 
 Files: `lib/start_page.dart`
 
+## 2026-10-04 — iOS project moved to Swift Package Manager (done by Flutter)
+
+Not something I chose: the first iOS builds of the session made Flutter migrate the iOS project automatically, so the plugins that support it (Firebase etc.) now come in through Swift Package Manager instead of CocoaPods. Thomas approved committing it. Reverting wouldn't stick, since Flutter reapplies it on each iOS build unless disabled (`flutter config --no-enable-swift-package-manager`).
+
+- `ios/Podfile.lock` shrank from ~1500 to ~27 lines (the migrated plugins left it; the rest stay on CocoaPods).
+- `project.pbxproj`: registers `FlutterGeneratedPluginSwiftPackage`. `Runner.xcscheme`: pre-build action running Flutter's `xcode_backend.sh prepare`.
+- `Package.resolved` (in `Runner.xcworkspace` and `Runner.xcodeproj/project.xcworkspace`, under `xcshareddata/swiftpm/`) pins the library versions.
+- Not committed: `Runner.xcscheme.backup` (Flutter's copy of the old scheme).
+- Verified: simulator debug build and an iPhone release build both built and ran. Not verified: a clean checkout on another machine. The first simulator build is slow because the large Firebase binaries (gRPC) are downloaded and unpacked through this.
+
+Files: `ios/Podfile.lock`, `ios/Runner.xcodeproj/project.pbxproj`, `ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`, `ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved`, `ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`
+
 ---
 
 ## Known issues not yet fixed
