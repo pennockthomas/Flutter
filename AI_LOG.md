@@ -580,6 +580,32 @@ Tests: 5 new in `test/challenge_repository_test.dart` (seed ids unique/readable;
 
 Files: `lib/challenge_model.dart`, `lib/challenge_repository.dart`, `lib/playground.dart`, `assets/data/challenge.json`, `test/challenge_repository_test.dart`, `test/challenge_model_test.dart`, `test/progress_summary_test.dart`
 
+## 2026-10-04 — Performance check: native is fine, the browser version is not
+
+Thomas saw low frame rates and jittery tree bubbles in the iOS simulator (debug build) and in the live web app on his phone. Findings:
+
+- **No code regression found.** Nothing since the Sept 27 physics/tab-bar work touches how the tree is drawn or moves; today's changes (web support, storage, hosting, item ids) don't either, and the live web app doesn't even contain the item-id commit.
+- **Simulator:** debug-only (Flutter can't run release or profile on the iOS simulator), and at the time the Mac was overloaded (load average ~230, swap full after 6 days uptime). Fine again after a restart.
+- **Native release build on the iPhone** (installed 2026-10-04 with `flutter build ios --release` + `flutter install --release`): Thomas confirms the app "is working great".
+- **Browser version on the phone: not smooth.** Recorded in `TODO.md` (P2 — Web version) with suspects: per-bubble blur, per-frame O(n²) physics with a full `setState`, and the large parallax background through CanvasKit. Not investigated or measured yet.
+- Side effect to know: `flutter install` uninstalls the old copy first, so the phone's local progress was reset by it.
+
+No code changed in this entry.
+
+## 2026-10-04 — Tree zoom limits and touch feel
+
+Thomas wanted the tree to feel more grounded. All in `lib/start_page.dart`:
+
+- **Zoom limits are now fixed: 0.7× out, 1.1× in** (the tree opens at 1.0×; it used to allow 0.2×–4×). Tried a user-facing zoom meter/slider first; Thomas didn't want it, so it was removed (it also persisted a value that overrode the default, which caused confusion).
+- **Rubber-band at the limits:** `InteractiveViewer` allows 12% past either limit (`_zoomGive`); on release `_settleZoom()` eases the view back (about the screen centre, `easeOutCubic` on the shared camera controller; snaps with reduced motion).
+- **Longer glide** after letting go of a drag: `interactionEndFrictionCoefficient: 0.003` (default 0.0000135; roughly 2× longer and farther). Keep it below ~0.005, because Flutter multiplies it by 200 for the pinch glide and a value ≥ 1 would make that grow instead of decay.
+- **Touch feedback:** a pressed bubble dips to 0.93 and springs back with a slight overshoot (`easeOutBack`); a dragged one still lifts to 1.08; skipped with reduced motion. **Haptics:** light tap when a bubble opens/closes, medium on Unlock Tier (no-op on web; there is no Settings toggle for it).
+- Not verified on a device: only built and run in the debug simulator (which can't show haptics and runs slower than a release build). The settle animation and the library's own glide both write the camera matrix after a pinch, so a pinch that ends with speed may look odd; check on the phone.
+
+Also found this session (no code): low frame rates in the simulator were a debug build plus an overloaded Mac, and the browser version is slow on phones while the native release build is smooth — see the previous entry and `TODO.md`.
+
+Files: `lib/start_page.dart`
+
 ---
 
 ## Known issues not yet fixed
