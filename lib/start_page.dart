@@ -59,16 +59,9 @@ class _StartScreenState extends State<StartScreen>
 
   Map<String, int> categories = {};
 
-  // The tree opens at 1.0x and may go a little closer, or further out.
+  // The tree opens at 1.0x; zoom stops at exactly these limits.
   final double maxZoom = 1.1;
   final double minZoom = 0.7;
-
-  // A pinch can stretch this far past a limit before it resists completely;
-  // on release the view eases back to the limit, which makes the zoom feel
-  // weighted instead of hitting a wall.
-  static const double _zoomGive = 0.12;
-  double get _softMinZoom => minZoom * (1 - _zoomGive);
-  double get _softMaxZoom => maxZoom * (1 + _zoomGive);
   final double canvasSize = 4000.0;
   final double maxLinkDistance = 200.0;
   final double targetLinkDistance = 120.0;
@@ -363,37 +356,6 @@ class _StartScreenState extends State<StartScreen>
     }
   }
 
-  /// After a pinch/scroll, eases the view back inside [minZoom]..[maxZoom]
-  /// if it was stretched past a limit, zooming about the screen centre.
-  void _settleZoom() {
-    final matrix = _transformController.value;
-    final scale = matrix.getMaxScaleOnAxis();
-    final target = scale.clamp(minZoom, maxZoom);
-    if ((scale - target).abs() < 0.001) return;
-
-    final screen = MediaQuery.sizeOf(context);
-    final translation = matrix.getTranslation();
-    final centerOnCanvas = Offset(
-      (screen.width / 2 - translation.x) / scale,
-      (screen.height / 2 - translation.y) / scale,
-    );
-    final end = Matrix4.identity()
-      ..translate(
-        screen.width / 2 - centerOnCanvas.dx * target,
-        screen.height / 2 - centerOnCanvas.dy * target,
-      )
-      ..scale(target);
-
-    if (AppSettings.reducedMotion.value) {
-      _transformController.value = end;
-      return;
-    }
-    _cameraAnimation = Matrix4Tween(begin: matrix, end: end).animate(
-      CurvedAnimation(parent: _cameraController, curve: Curves.easeOutCubic),
-    );
-    _cameraController.forward(from: 0);
-  }
-
   void _spawnNextTier(int parentIdx, {bool isRestoring = false}) async {
     if (nodes[parentIdx].hasSpawnedChildren) return;
     final parentNode = nodes[parentIdx];
@@ -610,12 +572,11 @@ class _StartScreenState extends State<StartScreen>
             transformationController: _transformController,
             constrained: false,
             boundaryMargin: const EdgeInsets.all(double.infinity),
-            minScale: _softMinZoom,
-            maxScale: _softMaxZoom,
+            minScale: minZoom,
+            maxScale: maxZoom,
             // Longer, softer glide after letting go (Flutter's default stops
             // within ~0.7s; this carries on for about twice as long).
             interactionEndFrictionCoefficient: 0.003,
-            onInteractionEnd: (_) => _settleZoom(),
             child: SizedBox(
               width: canvasSize,
               height: canvasSize,

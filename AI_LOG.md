@@ -690,6 +690,10 @@ Not tested on a device: the Export button's share sheet (shares like the progres
 
 Files: `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/settings.dart`, `assets/data/challenge.json`, `test/seed_version_test.dart`
 
+## 2026-10-07 — Rubber-band zoom removed
+
+Thomas didn't want the soft overshoot at the zoom limits (added 2026-10-04). `InteractiveViewer` is back to hard `minScale: 0.7` / `maxScale: 1.1`, and `_zoomGive`, the soft limits and `_settleZoom()` are gone. Kept from that change: the 0.7×–1.1× limits, the longer glide (`interactionEndFrictionCoefficient: 0.003`) and the press dip/haptics. Only `lib/start_page.dart` changed. Not yet on any device.
+
 ---
 
 ## Known issues not yet fixed
