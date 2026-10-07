@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -113,8 +114,21 @@ class AuthService {
           return 'Choose a password with at least 6 characters.';
         case 'network-request-failed':
           return 'No internet connection. Try again.';
+        case 'too-many-requests':
+          return 'Too many attempts. Wait a moment and try again.';
+        case 'operation-not-allowed':
+          return 'Signing in with email isn\'t turned on for this app yet.';
+        case 'internal-error':
+          // Firebase wraps server-side setup problems in this code; the
+          // useful part is buried in the message.
+          if ((error.message ?? '').contains('CONFIGURATION_NOT_FOUND')) {
+            return 'Accounts aren\'t set up for this app yet.';
+          }
+          return 'Something went wrong on our side. Try again later.';
         default:
-          return error.message ?? 'Something went wrong. Try again.';
+          // Not shown raw: Firebase messages can be long and technical.
+          debugPrint('Unhandled auth error ${error.code}: ${error.message}');
+          return 'Something went wrong. Try again.';
       }
     }
     return 'Something went wrong. Try again.';

@@ -122,7 +122,7 @@ Started 2026-09-27 with Thomas's go-ahead. Backend: Firebase (Auth + Firestore, 
   - [x] Unlocked tiers sync (2026-10-07), including Reset reaching other devices; the tree grows in or rebuilds when they change from another device.
   - [x] Tested against real Firestore (2026-10-07, simulator + web, same account): swaps and tiers sync both ways. Not yet tried: offline then online, a fresh install, two phones.
   - [ ] Show the sync status in the UI (`ProgressStateSync.instance.status`: signed out / syncing / up to date / failed already exists).
-  - [ ] Deploy the new Firestore rules (`firebase deploy --only firestore:rules`); the old rules also allow the new document, so sync works before this, just without the shape check.
+  - [x] Firestore rules with the shape check for the synced document deployed 2026-10-07. Still to confirm: a tick made after the deploy still syncs (if sync ever stops, the first suspect is the `progress/state` rule in `firestore.rules`).
   - [ ] Switching to a *different* account on one device clears the device's swaps first (they're safe in the old account's cloud copy). Swaps ticked as a guest between signing out and signing into another account are lost. Consider a prompt.
   - [ ] Sync on app resume / connectivity change (today: on sign-in, after each change, and retries every 15 s growing to 5 min).
 - [ ] Replace the three sample friends with real data and useful empty/loading/error states.

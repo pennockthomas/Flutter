@@ -651,6 +651,14 @@ Published to https://ecosteps.web.app (hosting deploy) before this commit, so th
 
 Files: `lib/progress_merge.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/start_page.dart`, `test/progress_merge_test.dart`, `test/challenge_store_test.dart`, `test/progress_state_sync_test.dart`
 
+## 2026-10-07 — Readable sign-in errors; Firestore rules deployed
+
+- **Sign-in errors** (`AuthService.messageFor`): Thomas hit a wall of raw Firebase text (`CONFIGURATION_NOT_FOUND`) when Authentication hadn't been switched on in the console. Now `internal-error` with that text shows "Accounts aren't set up for this app yet.", other internal errors show a generic "on our side" message, and new cases cover `too-many-requests` and `operation-not-allowed`. Unknown codes no longer show Firebase's own message (it's logged with `debugPrint` instead). 5 tests in `test/auth_messages_test.dart`.
+- **Firestore rules deployed** with `firebase deploy --only firestore:rules --project ecosteps-d60b6` (compiled without errors): explicit matches for `progress/summary` and `progress/state` (owner only; `state` limited to the keys schema/items/updatedAt and at most 2000 items). Not tested with the emulator, and not yet confirmed that a tick made after the deploy still syncs; if sync stops, check that rule first. To roll back, redeploy the previous `firestore.rules` from git (`60a5caf`).
+- Firebase Authentication itself had to be switched on by hand in the console (Sign-in method → Email/Password); that isn't in the repo, so a new Firebase project needs it too.
+
+Files: `lib/auth_service.dart`, `test/auth_messages_test.dart`, `TODO.md`
+
 ---
 
 ## Known issues not yet fixed
