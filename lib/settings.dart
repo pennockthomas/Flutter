@@ -12,6 +12,9 @@ import 'app_page_route.dart';
 import 'background_music.dart';
 import 'challenge_store.dart';
 import 'fading_edge_scroll_view.dart';
+import 'friends_firestore.dart';
+import 'friends_page.dart';
+import 'friends_service.dart';
 import 'intro_page.dart';
 import 'notifications.dart';
 import 'playground.dart';
@@ -52,6 +55,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _developerMode = developerMode;
         _hasUpdateBackup = hasBackup;
       });
+    }
+  }
+
+  /// Writes three made-up friends to the cloud, with totals matching the
+  /// current swap list, for showing people how Friends works. Only the app
+  /// owner's account is allowed to (see firestore.rules).
+  Future<void> _createDemoFriends() async {
+    try {
+      final challenges = await ChallengeStore.instance.ensureLoaded();
+      await FriendsService(
+        FirestoreFriendsBackend(),
+      ).resetDemoFriends(challenges);
+      _showMessage('Demo friends created. Switch on "Show demo friends".');
+    } catch (e) {
+      _showMessage(
+        "Couldn't create them. This needs the app owner's account, signed in.",
+      );
     }
   }
 
@@ -438,6 +458,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               _actionTile(
                                 "Export swap list (for a new version)",
                                 _exportSwapList,
+                              ),
+                              const _SettingSwitchTile(
+                                label: "Show demo friends",
+                                preferenceKey: showDemoFriendsKey,
+                                defaultValue: false,
+                              ),
+                              _actionTile(
+                                "Create demo friends in the cloud",
+                                _createDemoFriends,
                               ),
                               if (_hasUpdateBackup)
                                 _actionTile(

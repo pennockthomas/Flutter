@@ -2,22 +2,57 @@ rules_version = '2';
 
 // EcoSteps Firestore rules. Anything not explicitly allowed below is denied.
 // Deploy with: firebase deploy --only firestore:rules --project ecosteps-d60b6
+//
+// Friends work without any server code: a friendship is a document in
+// `friendRequests` (id "<fromUid>_<toUid>") that the person asked has
+// accepted, and progress is readable by friends only once that exists.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Phase 3b/3d: each user can read and write only their own profile and
-    // progress documents. Friends' read access is added in Phase 3c/3d, once
-    // an accepted-friends list exists to check against.
-    match /users/{uid} {
-      allow read, write: if isOwner(uid);
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
 
-      // Counts for friends to read (see ProgressSync).
+    function requestPath(id) {
+      return /databases/$(database)/documents/friendRequests/$(id);
+    }
+
+    // Has the request from `from` to `to` been accepted?
+    function acceptedFrom(from, to) {
+      return exists(requestPath(from + '_' + to))
+        && get(requestPath(from + '_' + to)).data.status == 'accepted';
+    }
+
+    // Is the signed-in user an accepted friend of `uid` (either direction)?
+    function isFriendOf(uid) {
+      return signedIn()
+        && (acceptedFrom(uid, request.auth.uid)
+            || acceptedFrom(request.auth.uid, uid));
+    }
+
+    // Only the app's owner may write the demo friends (see below).
+    function isAppOwner() {
+      return signedIn() && request.auth.token.email == 'pennock.thomas@gmail.com';
+    }
+
+    function shortText(value) {
+      return value is string && value.size() > 0 && value.size() <= 60;
+    }
+
+    match /users/{uid} {
+      // The profile (name, friend code): the owner and accepted friends.
+      allow read: if isOwner(uid) || isFriendOf(uid);
+      allow write: if isOwner(uid);
+
+      // Counts for friends to read (see ProgressSync). Counts only: no swap
+      // names are ever written here.
       match /progress/summary {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid) || isFriendOf(uid);
+        allow write: if isOwner(uid);
       }
 
       // Every swap ticked or unticked, for syncing between devices (see
@@ -30,6 +65,65 @@ service cloud.firestore {
           && request.resource.data.items is list
           && request.resource.data.items.size() <= 2000;
       }
+    }
+
+    // Friend codes: look one up by its code (get). There is deliberately no
+    // list, so nobody can browse or count accounts. A code can't be taken
+    // over: only its owner can change or remove it.
+    match /friendCodes/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && code.size() == 6
+        && request.resource.data.keys().hasOnly(['uid', 'displayName'])
+        && request.resource.data.uid == request.auth.uid
+        && shortText(request.resource.data.displayName);
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'displayName'])
+        && request.resource.data.uid == request.auth.uid
+        && shortText(request.resource.data.displayName);
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Friend requests. Only the two people involved can see one; only the
+    // person asked can accept; either can delete it (decline, cancel, remove).
+    match /friendRequests/{requestId} {
+      // The id contains both uids, so a get can be checked without the
+      // document existing (the app looks for a request before sending one).
+      allow get: if signedIn()
+        && (requestId.matches(request.auth.uid + '_.*')
+            || requestId.matches('.*_' + request.auth.uid));
+      allow list: if signedIn()
+        && (resource.data.from == request.auth.uid
+            || resource.data.to == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+            ['from', 'to', 'fromName', 'toName', 'status', 'createdAt'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && requestId == request.resource.data.from + '_' + request.resource.data.to
+        && request.resource.data.status == 'pending'
+        && shortText(request.resource.data.fromName)
+        && shortText(request.resource.data.toName);
+
+      allow update: if signedIn()
+        && resource.data.to == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+
+      allow delete: if signedIn()
+        && (resource.data.from == request.auth.uid
+            || resource.data.to == request.auth.uid);
+    }
+
+    // Made-up friends for showing how the Friends screen works. Fake data
+    // only, so anyone can read it; only the app's owner can write it.
+    match /demoFriends/{demoId} {
+      allow read: if true;
+      allow write: if isAppOwner();
     }
   }
 }

@@ -708,6 +708,25 @@ Tests: 11 new, 114 in total, all passing (`test/app_user_test.dart`: validation,
 
 Files: `lib/app_user.dart`, `lib/name_page.dart`, `lib/main.dart`, `lib/profile_page.dart`, `lib/profile_avatar_button.dart`, `lib/start_page.dart`, `lib/progress_sync.dart`, `test/app_user_test.dart`, `test/name_page_test.dart`, `TODO.md`
 
+## 2026-10-07 — Real friends: codes, requests, shared counts, demo friends
+
+Replaces the Friends screen's three hardcoded people (Mila, Sam, Lena) with real accounts. Thomas's decisions: **friends see counts only** (totals and per area, never swap names), and **keep three fake friends in the database** so the screen can be shown to people.
+
+**Rules tested and deployed (2026-10-07).** The 20 tests in `tool/rules_test/rules.test.js` all pass against the Firestore emulator (v1.22.0, downloaded into `~/.cache/firebase/emulators`; the test libraries are in `tool/rules_test/node_modules`, git-ignored; run `npm test` in that folder, it needs Java and Node), and `firestore.rules` was then deployed with `firebase deploy --only firestore:rules --project ecosteps-d60b6`. The existing apps (web and iPhone builds from before this work) use only the owner's own documents, whose rules are unchanged, so they keep working. **Not yet tried end to end with two real accounts** and the friends screen isn't in any installed build yet.
+
+- **Friend codes:** each account gets a 6-character code (letters and digits without 0/O/1/I), stored at `friendCodes/{code}` = `{uid, displayName}` and `users/{uid}.friendCode`. Looked up by code only (rules allow `get`, not `list`, so no one can browse accounts). The name next to the code follows the profile name.
+- **Requests:** `friendRequests/{fromUid}_{toUid}` with `status` pending or accepted. Adding a friend by code (`FriendsService.addByCode`): invalid code / not found / your own code / already friends (either direction) / already requested are reported; if the other person had already asked you, adding them accepts that request instead of creating a second. Only the person asked can accept (rules: `to == auth.uid`, only `status` may change); either can delete (decline, cancel, remove friend).
+- **Who can read progress:** `users/{uid}` and `users/{uid}/progress/summary` are readable by the owner and by accepted friends (rules function `isFriendOf`, which looks for an accepted request in either direction). The sync document `progress/state` stays owner-only. `summary` holds counts only; no swap names are ever written where friends can read.
+- **Screens:** `lib/friends_page.dart` is the list: signed out → prompt to sign in; signed in → requests (accept / decline / cancel), your friends with live totals and focus area, friend detail (per-area bars, a privacy note, Remove friend with a confirmation), plus empty, loading and error states. An **Add** button at the top right, next to the title, opens `lib/add_friend_page.dart` (Thomas asked for this instead of one long screen): your friend code (copy, share) and a box to enter theirs (button "Send"). The list screen makes sure the account has a code, and keeps the name stored next to it current, in the background. Server errors are shown as plain sentences.
+- **Demo friends:** `demoFriends/{id}` holds Mila Vermeer, Sam de Vries and Lena Bakker with totals that match the current swap list (built from it at creation time, so recreate them if the list changes). Anyone can read them (fake data); only the app owner can write (rules check the token email `pennock.thomas@gmail.com`). In Settings → Developer: "Create demo friends in the cloud" (needs to be signed in as the owner) and the "Show demo friends" switch (preference `friends.show_demo`); demo friends then appear under "Demo friends" with a Demo tag, also when signed out, and can't be removed.
+- Code layout: `friends_models.dart`, `friends_backend.dart` (interface), `friends_service.dart` (the rules of friendship), `friends_firestore.dart` (Firestore), `friends_page.dart` (screens). Cloud Functions aren't used (Spark plan), so a friendship is purely a document plus rules.
+
+Tests: 36 new (`test/friends_service_test.dart` 16, `test/friends_page_test.dart` 20, covering both screens; `test/fake_friends_backend.dart` is the in-memory backend); 148 in total, all passing. `tool/rules_test/rules.test.js`: 20 rule tests on the emulator (progress access with pending, accepted and removed friendships, strangers and signed-out visitors, friend codes can't be taken over, requests can't be forged or self-accepted, listing, demo friends, default deny), all passing.
+
+Not built: per-friend or per-area sharing toggles, blocking, Friend Updates, removing a user's friend data when they delete their account (account deletion doesn't exist yet).
+
+Files: `firestore.rules`, `lib/friends_*.dart`, `lib/settings.dart`, `test/friends_*_test.dart`, `test/fake_friends_backend.dart`, `tool/rules_test/`, `TODO.md`
+
 ---
 
 ## Known issues not yet fixed

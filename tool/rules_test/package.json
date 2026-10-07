@@ -1,0 +1,12 @@
+{
+  "name": "ecosteps-rules-test",
+  "private": true,
+  "description": "Tests for firestore.rules, run against the Firestore emulator. Run: npm test (from this folder).",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-ecosteps \"node --test rules.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0"
+  }
+}

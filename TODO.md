@@ -125,10 +125,10 @@ Started 2026-09-27 with Thomas's go-ahead. Backend: Firebase (Auth + Firestore, 
   - [x] Firestore rules with the shape check for the synced document deployed 2026-10-07. Still to confirm: a tick made after the deploy still syncs (if sync ever stops, the first suspect is the `progress/state` rule in `firestore.rules`).
   - [ ] Switching to a *different* account on one device clears the device's swaps first (they're safe in the old account's cloud copy). Swaps ticked as a guest between signing out and signing into another account are lost. Consider a prompt.
   - [ ] Sync on app resume / connectivity change (today: on sign-in, after each change, and retries every 15 s growing to 5 min).
-- [ ] Replace the three sample friends with real data and useful empty/loading/error states.
-- [ ] Implement friend invitations, acceptance, removal, and appropriate blocking controls.
-- [ ] Make progress sharing private by default and explain exactly what each sharing control exposes.
-- [ ] Enforce sharing permissions on the backend, including total, category, and checklist visibility.
+- [x] Replace the three sample friends with real data and useful empty/loading/error states. (Built 2026-10-07; rules tested on the emulator and deployed; still needs a two-account test on real devices. The three made-up friends live on as demo friends in the cloud for showing the screen.)
+- [ ] Implement friend invitations, acceptance, removal, and appropriate blocking controls. (Invitations by friend code, accept, decline, cancel and remove are built 2026-10-07. Blocking someone who keeps sending requests is not.)
+- [ ] Make progress sharing private by default and explain exactly what each sharing control exposes. (Today: nobody sees anything until a request is accepted, and friends only get totals and counts per area. The per-friend and per-area toggles are not built.)
+- [ ] Enforce sharing permissions on the backend, including total, category, and checklist visibility. (Done for 'friends only'; the finer toggles are not built. Swap names are never written to a place friends can read.)
 - [ ] Implement private-item behavior if retained in the product.
 - [ ] Implement Friend Updates using real events and respect notification preferences.
 - [ ] Test access isolation between accounts, revoked friendships, changed sharing settings, and account deletion.
