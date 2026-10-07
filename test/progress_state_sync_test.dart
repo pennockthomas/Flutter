@@ -235,6 +235,46 @@ void main() {
     expect(remote.writes, 1);
   });
 
+  test('tiers unlocked on this device reach the cloud', () async {
+    await signIn('anna');
+
+    await store.setTierUnlocked('Kitchen', true);
+
+    await _until(
+      () => remote.docs['anna']?.any((s) => s.id == 'tier:Kitchen') ?? false,
+      reason: 'tier to upload',
+    );
+  });
+
+  test('tiers unlocked on another device arrive here', () async {
+    remote.docs['anna'] = [_stamp('tier:Kitchen', true, 500)];
+
+    uids.add('anna');
+
+    await _until(
+      () => store.unlockedTiers.contains('Kitchen'),
+      reason: 'tier to arrive',
+    );
+  });
+
+  test('a reset on another device locks the tier here', () async {
+    await store.setTierUnlocked('Kitchen', true);
+    await signIn('anna');
+
+    remote.otherDeviceWrites('anna', [
+      _stamp(
+        'tier:Kitchen',
+        false,
+        DateTime.now().millisecondsSinceEpoch + 1000,
+      ),
+    ]);
+
+    await _until(
+      () => !store.unlockedTiers.contains('Kitchen'),
+      reason: 'tier to lock',
+    );
+  });
+
   test('a failed sync is retried', () async {
     remote.failNext = 2;
     await tick('kitchen.metal-knives', true);

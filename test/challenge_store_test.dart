@@ -5,11 +5,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:flut/challenge_model.dart';
 import 'package:flut/challenge_repository.dart';
 import 'package:flut/challenge_store.dart';
+import 'package:flut/progress_merge.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.documentsPath);
@@ -25,6 +27,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     tempDir = Directory.systemTemp.createTempSync('challenge_store_test');
     PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
     // ChallengeStore is a singleton that outlives individual tests, so force
@@ -37,115 +40,205 @@ void main() {
     tempDir.deleteSync(recursive: true);
   });
 
-  test('ensureLoaded caches after the first call; reload forces a refresh',
-      () async {
-    final first = await ChallengeStore.instance.ensureLoaded();
-    expect(first.containsKey('Kitchen'), isTrue);
+  test(
+    'ensureLoaded caches after the first call; reload forces a refresh',
+    () async {
+      final first = await ChallengeStore.instance.ensureLoaded();
+      expect(first.containsKey('Kitchen'), isTrue);
 
-    // Mutate the file on disk directly, bypassing the store.
-    final withoutKitchen = Map.of(first)..remove('Kitchen');
-    await ChallengeRepository().saveChallenges(withoutKitchen.values);
+      // Mutate the file on disk directly, bypassing the store.
+      final withoutKitchen = Map.of(first)..remove('Kitchen');
+      await ChallengeRepository().saveChallenges(withoutKitchen.values);
 
-    final cached = await ChallengeStore.instance.ensureLoaded();
-    expect(
-      cached.containsKey('Kitchen'),
-      isTrue,
-      reason: 'ensureLoaded should return the cached value, not re-read disk',
-    );
+      final cached = await ChallengeStore.instance.ensureLoaded();
+      expect(
+        cached.containsKey('Kitchen'),
+        isTrue,
+        reason: 'ensureLoaded should return the cached value, not re-read disk',
+      );
 
-    final refreshed = await ChallengeStore.instance.reload();
-    expect(refreshed.containsKey('Kitchen'), isFalse);
-  });
+      final refreshed = await ChallengeStore.instance.reload();
+      expect(refreshed.containsKey('Kitchen'), isFalse);
+    },
+  );
 
-  test('save updates the in-memory value, persists it, and notifies listeners',
-      () async {
-    await ChallengeStore.instance.ensureLoaded();
+  test(
+    'save updates the in-memory value, persists it, and notifies listeners',
+    () async {
+      await ChallengeStore.instance.ensureLoaded();
 
-    Map<String, Challenge>? notifiedChallenges;
-    void listener() => notifiedChallenges = ChallengeStore.instance.challenges;
-    ChallengeStore.instance.addListener(listener);
-    addTearDown(() => ChallengeStore.instance.removeListener(listener));
+      Map<String, Challenge>? notifiedChallenges;
+      void listener() =>
+          notifiedChallenges = ChallengeStore.instance.challenges;
+      ChallengeStore.instance.addListener(listener);
+      addTearDown(() => ChallengeStore.instance.removeListener(listener));
 
-    final current = ChallengeStore.instance.challenges;
-    final kitchen = current['Kitchen']!;
-    final updated = {
-      ...current,
-      'Kitchen': kitchen.copyWith(
-        checklist: [
-          kitchen.checklist.first.copyWith(isCompleted: true),
-          ...kitchen.checklist.skip(1),
-        ],
-      ),
-    };
+      final current = ChallengeStore.instance.challenges;
+      final kitchen = current['Kitchen']!;
+      final updated = {
+        ...current,
+        'Kitchen': kitchen.copyWith(
+          checklist: [
+            kitchen.checklist.first.copyWith(isCompleted: true),
+            ...kitchen.checklist.skip(1),
+          ],
+        ),
+      };
 
-    await ChallengeStore.instance.save(updated);
+      await ChallengeStore.instance.save(updated);
 
-    expect(notifiedChallenges, isNotNull);
-    expect(notifiedChallenges!['Kitchen']!.checklist.first.isCompleted, isTrue);
+      expect(notifiedChallenges, isNotNull);
+      expect(
+        notifiedChallenges!['Kitchen']!.checklist.first.isCompleted,
+        isTrue,
+      );
 
-    // Persisted to disk too, visible to a completely separate repository.
-    final persisted = await ChallengeRepository().loadChallenges();
-    expect(persisted['Kitchen']!.checklist.first.isCompleted, isTrue);
-  });
+      // Persisted to disk too, visible to a completely separate repository.
+      final persisted = await ChallengeRepository().loadChallenges();
+      expect(persisted['Kitchen']!.checklist.first.isCompleted, isTrue);
+    },
+  );
 
-  test('totalItems/completedItems/progress reflect the current challenges',
-      () async {
-    final challenges = await ChallengeStore.instance.ensureLoaded();
-    final expectedTotal = challenges.values
-        .fold<int>(0, (total, c) => total + c.checklist.length);
+  test(
+    'totalItems/completedItems/progress reflect the current challenges',
+    () async {
+      final challenges = await ChallengeStore.instance.ensureLoaded();
+      final expectedTotal = challenges.values.fold<int>(
+        0,
+        (total, c) => total + c.checklist.length,
+      );
 
-    expect(ChallengeStore.instance.totalItems, expectedTotal);
-    expect(ChallengeStore.instance.completedItems, 0);
-    expect(ChallengeStore.instance.progress, 0);
+      expect(ChallengeStore.instance.totalItems, expectedTotal);
+      expect(ChallengeStore.instance.completedItems, 0);
+      expect(ChallengeStore.instance.progress, 0);
 
-    final kitchen = challenges['Kitchen']!;
-    final updated = {
-      ...challenges,
-      'Kitchen': kitchen.copyWith(
-        checklist: [
-          kitchen.checklist.first.copyWith(isCompleted: true),
-          ...kitchen.checklist.skip(1),
-        ],
-      ),
-    };
-    await ChallengeStore.instance.save(updated);
+      final kitchen = challenges['Kitchen']!;
+      final updated = {
+        ...challenges,
+        'Kitchen': kitchen.copyWith(
+          checklist: [
+            kitchen.checklist.first.copyWith(isCompleted: true),
+            ...kitchen.checklist.skip(1),
+          ],
+        ),
+      };
+      await ChallengeStore.instance.save(updated);
 
-    expect(ChallengeStore.instance.completedItems, 1);
-    expect(ChallengeStore.instance.progress, 1 / expectedTotal);
-  });
+      expect(ChallengeStore.instance.completedItems, 1);
+      expect(ChallengeStore.instance.progress, 1 / expectedTotal);
+    },
+  );
 
   // Regression: with the tab layout, several screens load at once, and every
   // load/save writes through the same `.tmp` file. Overlapping operations
   // used to rename that file out from under each other (PathNotFoundException).
-  test('overlapping loads and saves run one at a time, last one wins',
+  test(
+    'overlapping loads and saves run one at a time, last one wins',
+    () async {
+      final base = await ChallengeStore.instance.ensureLoaded();
+      final kitchen = base['Kitchen']!;
+      Map<String, Challenge> withFirstItem({required bool completed}) => {
+        ...base,
+        'Kitchen': kitchen.copyWith(
+          checklist: [
+            kitchen.checklist.first.copyWith(isCompleted: completed),
+            ...kitchen.checklist.skip(1),
+          ],
+        ),
+      };
+
+      await Future.wait([
+        ChallengeStore.instance.reload(),
+        ChallengeStore.instance.reload(),
+        ChallengeStore.instance.save(withFirstItem(completed: true)),
+        ChallengeStore.instance.reload(),
+        ChallengeStore.instance.save(withFirstItem(completed: false)),
+        ChallengeStore.instance.save(withFirstItem(completed: true)),
+      ]);
+
+      expect(
+        ChallengeStore
+            .instance
+            .challenges['Kitchen']!
+            .checklist
+            .first
+            .isCompleted,
+        isTrue,
+      );
+      final persisted = await ChallengeRepository().loadChallenges();
+      expect(persisted['Kitchen']!.checklist.first.isCompleted, isTrue);
+    },
+  );
+
+  group('unlocked tiers', () {
+    test('an unlocked tier survives a reload', () async {
+      await ChallengeStore.instance.setTierUnlocked('Kitchen', true);
+
+      await ChallengeStore.instance.reload();
+
+      expect(ChallengeStore.instance.unlockedTiers, {'Kitchen'});
+    });
+
+    test(
+      'tiers saved the old way (a list in preferences) are carried over',
       () async {
-    final base = await ChallengeStore.instance.ensureLoaded();
-    final kitchen = base['Kitchen']!;
-    Map<String, Challenge> withFirstItem({required bool completed}) => {
-          ...base,
-          'Kitchen': kitchen.copyWith(
-            checklist: [
-              kitchen.checklist.first.copyWith(isCompleted: completed),
-              ...kitchen.checklist.skip(1),
-            ],
-          ),
-        };
+        SharedPreferences.setMockInitialValues({
+          'unlocked_nodes': ['Start', 'Kitchen'],
+        });
 
-    await Future.wait([
-      ChallengeStore.instance.reload(),
-      ChallengeStore.instance.reload(),
-      ChallengeStore.instance.save(withFirstItem(completed: true)),
-      ChallengeStore.instance.reload(),
-      ChallengeStore.instance.save(withFirstItem(completed: false)),
-      ChallengeStore.instance.save(withFirstItem(completed: true)),
-    ]);
+        await ChallengeStore.instance.reload();
 
-    expect(
-      ChallengeStore.instance.challenges['Kitchen']!.checklist.first
-          .isCompleted,
-      isTrue,
+        expect(ChallengeStore.instance.unlockedTiers, {'Start', 'Kitchen'});
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.containsKey('unlocked_nodes'), isFalse);
+
+        // And they stay after another reload, from the new file.
+        await ChallengeStore.instance.reload();
+        expect(ChallengeStore.instance.unlockedTiers, {'Start', 'Kitchen'});
+      },
     );
-    final persisted = await ChallengeRepository().loadChallenges();
-    expect(persisted['Kitchen']!.checklist.first.isCompleted, isTrue);
+
+    test(
+      'lockAllTiers locks them again, stamped so the reset can sync',
+      () async {
+        await ChallengeStore.instance.setTierUnlocked('Kitchen', true);
+
+        await ChallengeStore.instance.lockAllTiers();
+
+        expect(ChallengeStore.instance.unlockedTiers, isEmpty);
+        final result = await ChallengeStore.instance.mergeRemote(const []);
+        expect(
+          result.remote.single,
+          isA<ItemStamp>()
+              .having((s) => s.id, 'id', 'tier:Kitchen')
+              .having((s) => s.done, 'done', isFalse),
+        );
+      },
+    );
+
+    test('mergeRemote brings in tiers and tells listeners', () async {
+      var notified = 0;
+      void listener() => notified++;
+      ChallengeStore.instance.addListener(listener);
+      addTearDown(() => ChallengeStore.instance.removeListener(listener));
+
+      await ChallengeStore.instance.mergeRemote([
+        const ItemStamp(id: 'tier:Bathroom', done: true, at: 5),
+      ]);
+
+      expect(ChallengeStore.instance.unlockedTiers, {'Bathroom'});
+      expect(notified, 1);
+
+      await ChallengeStore.instance.reload();
+      expect(ChallengeStore.instance.unlockedTiers, {'Bathroom'});
+    });
+
+    test('clearProgress forgets the tiers too', () async {
+      await ChallengeStore.instance.setTierUnlocked('Kitchen', true);
+
+      await ChallengeStore.instance.clearProgress();
+
+      expect(ChallengeStore.instance.unlockedTiers, isEmpty);
+    });
   });
 }

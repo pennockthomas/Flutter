@@ -17,6 +17,7 @@ class ChallengeStore extends ChangeNotifier {
   final ChallengeRepository _repository = ChallengeRepository();
 
   Map<String, Challenge> _challenges = {};
+  Map<String, ItemStamp> _tiers = {};
   bool _isLoaded = false;
 
   /// The first load, shared by every caller that asks before it finishes.
@@ -36,6 +37,12 @@ class ChallengeStore extends ChangeNotifier {
   }
 
   Map<String, Challenge> get challenges => _challenges;
+
+  /// Labels of the tiers (tree bubbles) that have been unlocked.
+  Set<String> get unlockedTiers => {
+    for (final tier in _tiers.values)
+      if (tier.done) tier.id,
+  };
 
   int get totalItems => _challenges.values.fold(
     0,
@@ -71,6 +78,7 @@ class ChallengeStore extends ChangeNotifier {
   /// Only call from inside [_serialized] (or via [reload]).
   Future<Map<String, Challenge>> _reloadNow() async {
     _challenges = await _repository.loadChallenges();
+    _tiers = await _repository.loadTiers();
     _isLoaded = true;
     notifyListeners();
     return _challenges;
@@ -106,15 +114,55 @@ class ChallengeStore extends ChangeNotifier {
       if (!_isLoaded) await _reloadNow();
       final result = mergeProgress(
         local: _challenges,
+        localTiers: _tiers,
         remote: remote,
         now: now ?? DateTime.now().millisecondsSinceEpoch,
       );
       if (result.localChanged) {
         await _repository.saveChallenges(result.challenges.values);
         _challenges = result.challenges;
-        notifyListeners();
       }
+      if (result.tiersChanged) {
+        await _repository.saveTiers(result.tiers);
+        _tiers = result.tiers;
+      }
+      if (result.localChanged || result.tiersChanged) notifyListeners();
       return result;
+    });
+  }
+
+  /// Unlocks or locks a tier, stamped now so it can be synced.
+  Future<void> setTierUnlocked(String label, bool unlocked) {
+    return _serialized(() async {
+      if (!_isLoaded) await _reloadNow();
+      if (_tiers[label]?.done == unlocked) return;
+      _tiers = {
+        ..._tiers,
+        label: ItemStamp(
+          id: label,
+          done: unlocked,
+          at: DateTime.now().millisecondsSinceEpoch,
+        ),
+      };
+      await _repository.saveTiers(_tiers);
+      notifyListeners();
+    });
+  }
+
+  /// Locks every unlocked tier again (the Reset button), stamped now so the
+  /// reset also reaches the account's other devices.
+  Future<void> lockAllTiers() {
+    return _serialized(() async {
+      if (!_isLoaded) await _reloadNow();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      _tiers = {
+        for (final entry in _tiers.entries)
+          entry.key: entry.value.done
+              ? ItemStamp(id: entry.key, done: false, at: now)
+              : entry.value,
+      };
+      await _repository.saveTiers(_tiers);
+      notifyListeners();
     });
   }
 
@@ -135,6 +183,8 @@ class ChallengeStore extends ChangeNotifier {
       };
       await _repository.saveChallenges(cleared.values);
       _challenges = cleared;
+      _tiers = {};
+      await _repository.saveTiers(_tiers);
       notifyListeners();
     });
   }

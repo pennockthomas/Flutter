@@ -203,6 +203,115 @@ void main() {
     });
   });
 
+  group('tiers', () {
+    ItemStamp tier(String label, bool done, int at) =>
+        ItemStamp(id: label, done: done, at: at);
+
+    test('a tier unlocked in the cloud is unlocked here', () {
+      final result = mergeProgress(
+        local: _catalog([_item('a')]),
+        remote: [_stamp('tier:Kitchen', true, 20)],
+        now: 99,
+      );
+
+      expect(result.tiers, {'Kitchen': tier('Kitchen', true, 20)});
+      expect(result.tiersChanged, isTrue);
+      expect(result.remoteChanged, isFalse);
+    });
+
+    test(
+      'a tier unlocked here is uploaded, stamped now if it had no stamp',
+      () {
+        final result = mergeProgress(
+          local: _catalog([_item('a')]),
+          localTiers: {'Kitchen': tier('Kitchen', true, 0)},
+          remote: const [],
+          now: 77,
+        );
+
+        expect(result.tiers['Kitchen'], tier('Kitchen', true, 77));
+        expect(result.tiersChanged, isTrue);
+        expect(result.remote, [_stamp('tier:Kitchen', true, 77)]);
+      },
+    );
+
+    test('a newer lock (a reset) beats an older unlock', () {
+      final result = mergeProgress(
+        local: _catalog([_item('a')]),
+        localTiers: {'Kitchen': tier('Kitchen', true, 10)},
+        remote: [_stamp('tier:Kitchen', false, 20)],
+        now: 99,
+      );
+
+      expect(result.tiers['Kitchen']!.done, isFalse);
+    });
+
+    test('a newer local unlock beats an older cloud lock and is uploaded', () {
+      final result = mergeProgress(
+        local: _catalog([_item('a')]),
+        localTiers: {'Kitchen': tier('Kitchen', true, 30)},
+        remote: [_stamp('tier:Kitchen', false, 20)],
+        now: 99,
+      );
+
+      expect(result.tiers['Kitchen']!.done, isTrue);
+      expect(result.remote, [_stamp('tier:Kitchen', true, 30)]);
+    });
+
+    test('tiers and swaps merge side by side without mixing', () {
+      final result = mergeProgress(
+        local: _catalog([_item('a', done: true, at: 10)]),
+        localTiers: {'Kitchen': tier('Kitchen', true, 10)},
+        remote: [_stamp('tier:Bathroom', true, 15)],
+        now: 99,
+      );
+
+      expect(result.tiers.keys, containsAll(['Kitchen', 'Bathroom']));
+      expect(_only(result, 'a').isCompleted, isTrue);
+      expect(result.remote.map((s) => s.id), [
+        'a',
+        'tier:Bathroom',
+        'tier:Kitchen',
+      ]);
+    });
+
+    test('merging the result again changes nothing', () {
+      final first = mergeProgress(
+        local: _catalog([_item('a')]),
+        localTiers: {
+          'Kitchen': tier('Kitchen', true, 0),
+          'Food Storage': tier('Food Storage', true, 40),
+        },
+        remote: [
+          _stamp('tier:Food Storage', false, 20),
+          _stamp('tier:Bathroom', true, 50),
+        ],
+        now: 77,
+      );
+      final second = mergeProgress(
+        local: first.challenges,
+        localTiers: first.tiers,
+        remote: first.remote,
+        now: 1000,
+      );
+
+      expect(second.tiersChanged, isFalse);
+      expect(second.remoteChanged, isFalse);
+      expect(second.tiers, first.tiers);
+    });
+
+    test('nothing unlocked anywhere leaves everything empty', () {
+      final result = mergeProgress(
+        local: _catalog([_item('a')]),
+        remote: const [],
+        now: 77,
+      );
+
+      expect(result.tiers, isEmpty);
+      expect(result.tiersChanged, isFalse);
+    });
+  });
+
   test(
     'ChecklistItem keeps updatedAt through JSON, and omits it when null',
     () {

@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_settings.dart';
 import 'app_page_route.dart';
@@ -185,23 +184,81 @@ class _StartScreenState extends State<StartScreen>
         _syncNodeCompletionFromChecklist(label);
       }
     });
+    _reconcileTiers();
+  }
+
+  /// Brings the tree in line with the unlocked tiers in the store, which can
+  /// change from outside (another device signed in to the same account).
+  /// Newly unlocked tiers grow in; if a tier was locked again (a reset
+  /// elsewhere) the tree is rebuilt, since bubbles can't be un-spawned.
+  void _reconcileTiers() {
+    final unlocked = ChallengeStore.instance.unlockedTiers;
+    if (nodes.any((n) => n.hasSpawnedChildren && !unlocked.contains(n.label))) {
+      _rebuildTree();
+      return;
+    }
+    _spawnUnlockedTiers(unlocked);
+  }
+
+  /// Spawns the children of every unlocked tier that isn't open yet. Looped
+  /// because a tier's children only exist once it has spawned.
+  void _spawnUnlockedTiers(Set<String> unlocked) {
+    var spawned = true;
+    while (spawned) {
+      spawned = false;
+      for (var i = 0; i < nodes.length; i++) {
+        if (!nodes[i].hasSpawnedChildren && unlocked.contains(nodes[i].label)) {
+          _spawnNextTier(i, isRestoring: true);
+          spawned = true;
+        }
+      }
+    }
+  }
+
+  bool _rebuilding = false;
+
+  Future<void> _rebuildTree() async {
+    if (_rebuilding) return;
+    _rebuilding = true;
+    try {
+      if (mounted) setState(() => isLoading = true);
+      await _loadInitialData();
+    } finally {
+      _rebuilding = false;
+    }
+  }
+
+  /// How many tiers are open under each top-level area (at most 10 each),
+  /// worked out from the tree, so it can never disagree with it. Call inside
+  /// setState.
+  void _recomputeCategories() {
+    for (final category in categories.keys.toList()) {
+      categories[category] = 0;
+    }
+    for (final node in nodes) {
+      final root = node.rootCategory;
+      if (root != null &&
+          node.hasSpawnedChildren &&
+          categories.containsKey(root)) {
+        categories[root] = (categories[root]! + 1).clamp(0, 10);
+      }
+    }
   }
 
   Future<void> _loadInitialData() async {
     try {
       final tempMap = await ChallengeStore.instance.ensureLoaded();
 
-      final prefs = await SharedPreferences.getInstance();
       List<String> mainTiers = tempMap["Start"]?.unlocks ?? [];
-      Map<String, int> dynamicCategories = {};
-      for (var tier in mainTiers) {
-        dynamicCategories[tier] = prefs.getInt('progress_$tier') ?? 0;
-      }
+      Map<String, int> dynamicCategories = {
+        for (var tier in mainTiers) tier: 0,
+      };
 
       setState(() {
         challengeData = tempMap;
         categories = dynamicCategories;
         isLoading = false;
+        connections = [];
         nodes = [
           Node(
             position: Offset(canvasSize / 2, canvasSize / 2),
@@ -211,11 +268,7 @@ class _StartScreenState extends State<StartScreen>
         ];
       });
 
-      List<String> savedUnlocked = prefs.getStringList('unlocked_nodes') ?? [];
-      for (String label in savedUnlocked) {
-        int idx = nodes.indexWhere((n) => n.label == label);
-        if (idx != -1) _spawnNextTier(idx, isRestoring: true);
-      }
+      _spawnUnlockedTiers(ChallengeStore.instance.unlockedTiers);
       for (final label in challengeData.keys) {
         _syncNodeCompletionFromChecklist(label);
       }
@@ -259,15 +312,6 @@ class _StartScreenState extends State<StartScreen>
   }
 
   Future<void> _resetProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    final progressKeys = prefs
-        .getKeys()
-        .where((key) => key.startsWith('progress_') || key == 'unlocked_nodes')
-        .toList();
-    for (final key in progressKeys) {
-      await prefs.remove(key);
-    }
-
     final resetChallenges = {
       for (final entry in challengeData.entries)
         entry.key: entry.value.copyWith(
@@ -277,20 +321,10 @@ class _StartScreenState extends State<StartScreen>
         ),
     };
     await ChallengeStore.instance.save(resetChallenges);
+    await ChallengeStore.instance.lockAllTiers();
 
     if (!mounted) return;
-    setState(() => isLoading = true);
-    await _loadInitialData();
-  }
-
-  Future<void> _updateCategoryProgress(String category) async {
-    if (!categories.containsKey(category)) return;
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      int currentVal = categories[category] ?? 0;
-      categories[category] = (currentVal + 1).clamp(0, 10);
-    });
-    await prefs.setInt('progress_$category', categories[category]!);
+    await _rebuildTree();
   }
 
   void _centerOnNode(
@@ -366,14 +400,9 @@ class _StartScreenState extends State<StartScreen>
     String currentLabel = parentNode.label;
 
     if (!isRestoring) {
-      final prefs = await SharedPreferences.getInstance();
-      List<String> history = prefs.getStringList('unlocked_nodes') ?? [];
-      if (!history.contains(currentLabel)) {
-        history.add(currentLabel);
-        await prefs.setStringList('unlocked_nodes', history);
-      }
-      if (parentNode.rootCategory != null)
-        _updateCategoryProgress(parentNode.rootCategory!);
+      // Recorded first: a sync or reconcile that runs while the sound plays
+      // then sees this tier as unlocked rather than as a stray open bubble.
+      await ChallengeStore.instance.setTierUnlocked(currentLabel, true);
       await AppSettings.playSoundEffectIfEnabled(AppSounds.tierUnlocked);
     }
 
@@ -406,6 +435,7 @@ class _StartScreenState extends State<StartScreen>
           connections.add([parentIdx, nodes.length - 1]);
         }
       }
+      _recomputeCategories();
     });
   }
 

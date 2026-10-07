@@ -634,6 +634,23 @@ Tests: 23 new (`test/progress_merge_test.dart`: 15, `test/progress_state_sync_te
 
 Files: `lib/challenge_model.dart`, `lib/challenge_store.dart`, `lib/progress_merge.dart`, `lib/progress_remote.dart`, `lib/progress_state_sync.dart`, `lib/main.dart`, `firestore.rules`, `test/progress_merge_test.dart`, `test/progress_state_sync_test.dart`, `TODO.md`
 
+## 2026-10-07 — Unlocked tiers sync too (step 3 of 3)
+
+Completes per-account sync: a fresh device now gets the whole tree, not just the ticked swaps. **Verified by Thomas on real devices** (iOS simulator and the live web app, signed in to the same account): tiers unlocked on one show up on the other, in both directions, without a restart. Swap sync was confirmed the same way earlier today.
+
+- **Same rules as swaps:** `mergeProgress` now takes `localTiers` and resolves each tier with the shared `_resolve` rule (newest change wins, a tie goes to unlocked, unstamped legacy unlocks are stamped "now"). In the cloud document tiers are entries in the same `items` list with ids `tier:<label>` (`tierIdPrefix`); locally they're keyed by plain label. A lock is a stamped entry too, so Reset propagates.
+- **Local storage:** new `tier_unlocks.json` via the same `TextStore` as the swaps (`ChallengeRepository.loadTiers/saveTiers`). Migration: if the file doesn't exist, the old `unlocked_nodes` list from SharedPreferences is imported (unstamped), written to the file, and the old key removed. If preferences are unavailable it starts empty.
+- **Store:** `ChallengeStore.unlockedTiers`, `setTierUnlocked`, `lockAllTiers` (Reset), `mergeRemote` handles tiers and swaps in one step, `clearProgress` (account switch) clears tiers too.
+- **Tree** (`start_page.dart`): no longer touches SharedPreferences for tiers. Unlocking records the tier in the store first. `_onChallengesChanged` → `_reconcileTiers`: newly unlocked tiers grow in (restore path: no sound or camera move); if a spawned tier became locked (a reset elsewhere) the tree is rebuilt (`_rebuildTree`). The per-area progress counts (`categories`) are now computed from the tree (`_recomputeCategories`) instead of the stored `progress_<area>` values; those old keys are just left unused in preferences.
+- **Fixed on the way:** `_loadInitialData` never cleared `connections`, so after Reset the old connection index pairs stayed and could draw lines between wrong bubbles once new nodes were added.
+- Still open (see `TODO.md`): sync status isn't shown in the UI; the new Firestore rules aren't deployed; switching to a *different* account on one device clears the swaps and tiers first (the old account's cloud copy keeps them); sync only runs on sign-in, after changes and on retry timers, not on app resume; the tree's live reaction to a tier arriving isn't covered by an automated test, only by manual checks.
+
+Tests: 15 new (merge tiers: 7 in `progress_merge_test.dart`; store tiers incl. the preferences migration: 5 in `challenge_store_test.dart`; sync service with tiers: 3 in `progress_state_sync_test.dart`). 82 in total, all passing. Analyzer: no warnings.
+
+Published to https://ecosteps.web.app (hosting deploy) before this commit, so the live site matched the working tree, then committed.
+
+Files: `lib/progress_merge.dart`, `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/start_page.dart`, `test/progress_merge_test.dart`, `test/challenge_store_test.dart`, `test/progress_state_sync_test.dart`
+
 ---
 
 ## Known issues not yet fixed

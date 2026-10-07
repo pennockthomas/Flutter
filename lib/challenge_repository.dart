@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'challenge_model.dart';
 import 'file_text_store.dart';
+import 'progress_merge.dart';
 import 'text_store.dart';
 
 class ChallengeRepository {
@@ -17,6 +19,10 @@ class ChallengeRepository {
 
   static const String seedAssetPath = 'assets/data/challenge.json';
   static const String editableFileName = 'challenge_editor.json';
+  static const String tiersFileName = 'tier_unlocks.json';
+
+  /// Where unlocked tiers used to be kept (a plain list of labels).
+  static const String legacyUnlockedNodesKey = 'unlocked_nodes';
   static const String importBackupFileName =
       'challenge_editor.pre_import_backup.json';
 
@@ -48,6 +54,59 @@ class ChallengeRepository {
 
     await _writeChallengeFile(mergedChallenges.values, updatedSeenSeedIds);
     return mergedChallenges;
+  }
+
+  /// The unlocked-tier state, keyed by label ([ItemStamp.done] = unlocked).
+  /// Saves from before tiers had timestamps kept a bare list of labels in
+  /// SharedPreferences; those are carried over (unstamped, so they're stamped
+  /// the first time they're merged) and the old key is removed.
+  Future<Map<String, ItemStamp>> loadTiers() async {
+    final text = await _store.read(tiersFileName);
+    if (text != null) {
+      try {
+        final decoded = jsonDecode(text) as Map<String, dynamic>;
+        return {
+          for (final entry in (decoded['tiers'] as List<dynamic>? ?? const []))
+            (entry as Map<String, dynamic>)['id'] as String: ItemStamp(
+              id: entry['id'] as String,
+              done: entry['done'] as bool,
+              at: (entry['at'] as num).toInt(),
+            ),
+        };
+      } catch (e) {
+        debugPrint('Unreadable tier file, starting without tiers: $e');
+        return {};
+      }
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getStringList(legacyUnlockedNodesKey) ?? const [];
+      final tiers = {
+        for (final label in legacy)
+          label: ItemStamp(id: label, done: true, at: 0),
+      };
+      if (legacy.isNotEmpty) {
+        await saveTiers(tiers);
+        await prefs.remove(legacyUnlockedNodesKey);
+      }
+      return tiers;
+    } catch (e) {
+      // No preferences to migrate from; start with nothing unlocked.
+      debugPrint('Could not read the old tier list: $e');
+      return {};
+    }
+  }
+
+  Future<void> saveTiers(Map<String, ItemStamp> tiers) async {
+    const encoder = JsonEncoder.withIndent('  ');
+    final list = tiers.values.toList()..sort((a, b) => a.id.compareTo(b.id));
+    await _store.write(
+      tiersFileName,
+      encoder.convert({
+        'tiers': [for (final tier in list) tier.toJson()],
+      }),
+    );
   }
 
   Future<void> saveChallenges(Iterable<Challenge> challenges) async {
