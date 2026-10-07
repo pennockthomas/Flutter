@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'challenge_model.dart';
 import 'challenge_repository.dart';
+import 'progress_merge.dart';
 
 /// Single in-memory source of truth for challenge data, shared by every
 /// screen. Without this, each screen kept its own copy loaded independently,
@@ -75,12 +76,65 @@ class ChallengeStore extends ChangeNotifier {
     return _challenges;
   }
 
-  Future<void> save(Map<String, Challenge> challenges) {
-    final updatedChallenges = Map<String, Challenge>.from(challenges);
+  /// Saves [challenges]. Items whose completion differs from what's stored
+  /// are stamped with the current time (see [ChecklistItem.updatedAt]), so
+  /// every screen that ticks or unticks a swap gets sync-ready timestamps
+  /// without knowing about them. Pass `stamp: false` to store the data
+  /// exactly as given.
+  Future<void> save(Map<String, Challenge> challenges, {bool stamp = true}) {
+    final incoming = Map<String, Challenge>.from(challenges);
     return _serialized(() async {
+      final updatedChallenges = stamp
+          ? stampChanges(
+              _challenges,
+              incoming,
+              DateTime.now().millisecondsSinceEpoch,
+            )
+          : incoming;
       await _repository.saveChallenges(updatedChallenges.values);
       _challenges = updatedChallenges;
       _isLoaded = true;
+      notifyListeners();
+    });
+  }
+
+  /// Merges the cloud's state into the local data (see [mergeProgress]),
+  /// saving and notifying only if something changed locally. Runs in the
+  /// disk queue, so it sees the very latest local data. [now] is for tests.
+  Future<MergeResult> mergeRemote(List<ItemStamp> remote, {int? now}) {
+    return _serialized(() async {
+      if (!_isLoaded) await _reloadNow();
+      final result = mergeProgress(
+        local: _challenges,
+        remote: remote,
+        now: now ?? DateTime.now().millisecondsSinceEpoch,
+      );
+      if (result.localChanged) {
+        await _repository.saveChallenges(result.challenges.values);
+        _challenges = result.challenges;
+        notifyListeners();
+      }
+      return result;
+    });
+  }
+
+  /// Unticks everything and forgets all timestamps, without stamping: the
+  /// device has no progress of its own any more (used when a different
+  /// account signs in, so one person's swaps never leak into another's).
+  Future<void> clearProgress() {
+    return _serialized(() async {
+      if (!_isLoaded) await _reloadNow();
+      final cleared = {
+        for (final entry in _challenges.entries)
+          entry.key: entry.value.copyWith(
+            checklist: [
+              for (final item in entry.value.checklist)
+                item.copyWith(isCompleted: false, clearUpdatedAt: true),
+            ],
+          ),
+      };
+      await _repository.saveChallenges(cleared.values);
+      _challenges = cleared;
       notifyListeners();
     });
   }

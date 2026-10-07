@@ -618,6 +618,22 @@ Not something I chose: the first iOS builds of the session made Flutter migrate 
 
 Files: `ios/Podfile.lock`, `ios/Runner.xcodeproj/project.pbxproj`, `ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`, `ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved`, `ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`
 
+## 2026-10-07 — Per-account sync of ticked swaps (step 2 of 3: merge + cloud sync)
+
+Builds on the item ids (2026-10-03). When signed in, ticked swaps now follow the account across devices. **Not yet tested against real Firestore** (needs a sign-in on two devices); the logic is covered by tests with an in-memory stand-in for the cloud.
+
+- **Timestamps:** `ChecklistItem.updatedAt` (ms since epoch, optional, saved in the JSON). `ChallengeStore.save()` stamps any item whose completion changed (`stampChanges`), so every screen that ticks/unticks gets it without changes; `save(stamp: false)` stores data as given.
+- **Merge rules** (`lib/progress_merge.dart`, pure): per swap, the newer change wins; a tie goes to the tick; an untick is a stamped entry, not a deletion, so a stale tick can't undo it; a tick from before timestamps is stamped "now" the first time it's seen; cloud entries for swaps this device doesn't have are kept; merging the result again changes nothing. Different swaps changed on two devices both survive.
+- **Cloud shape:** `users/{uid}/progress/state` = `{schema: 1, items: [{id, done, at}, ...], updatedAt}`. A list, not a map, because swap ids contain dots. Only swaps that were ever ticked or unticked are stored.
+- **Service** (`lib/progress_state_sync.dart`, started from `main()`): on sign-in and ~2 s after each local change it runs a Firestore transaction that reads the cloud state, merges with the local data and writes back only if changed (`ProgressRemote` / `FirestoreProgressRemote`); a live listener merges in other devices' changes (own pending writes are ignored); failures retry after 15 s, doubling to 5 min. The local save stays the source of truth and the app works the same signed out. `status` (`SyncStatus`) is ready for a UI indicator but nothing shows it yet.
+- **Account switch:** pref `sync.last_uid`. Signing in as a *different* account than last time clears the device's swaps first (`ChallengeStore.clearProgress()`), so one person's progress is never merged into another's. Signing out keeps the local data.
+- **Rules:** `firestore.rules` now has explicit `progress/summary` and `progress/state` matches (state: owner only, keys limited to schema/items/updatedAt, at most 2000 items). Not deployed, and the rules weren't tested with the emulator; the previous generic rule already allowed the new document.
+- **Not done:** unlocked tiers (`unlocked_nodes` in SharedPreferences, written from `start_page.dart`) don't sync, so a fresh device gets the swaps but the tree shows only Start until tiers are unlocked again. Details and the other open items are in `TODO.md` (P3).
+
+Tests: 23 new (`test/progress_merge_test.dart`: 15, `test/progress_state_sync_test.dart`: 8 — first sign-in uploads local progress, fresh device downloads, later tick uploads, untick uploads as an untick, other-device change arrives without a re-upload, account switch doesn't leak, sign-out keeps data and stops syncing, failures retry). 67 in total, all passing. Analyzer: nothing in the new files.
+
+Files: `lib/challenge_model.dart`, `lib/challenge_store.dart`, `lib/progress_merge.dart`, `lib/progress_remote.dart`, `lib/progress_state_sync.dart`, `lib/main.dart`, `firestore.rules`, `test/progress_merge_test.dart`, `test/progress_state_sync_test.dart`, `TODO.md`
+
 ---
 
 ## Known issues not yet fixed

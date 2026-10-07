@@ -10,6 +10,7 @@ import 'background_music.dart';
 import 'firebase_options.dart';
 import 'intro_page.dart';
 import 'notifications.dart';
+import 'progress_state_sync.dart';
 import 'progress_sync.dart';
 
 void main() async {
@@ -19,8 +20,11 @@ void main() async {
   // allowFirstFrame() once the photo is ready.
   WidgetsFlutterBinding.ensureInitialized().deferFirstFrame();
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     ProgressSync.instance.start();
+    ProgressStateSync.instance.start();
   } catch (e) {
     // Accounts/sync are additive — the app must stay fully usable offline
     // even if Firebase can't be reached (no network, misconfigured project).

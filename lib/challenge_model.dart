@@ -14,10 +14,16 @@ class ChecklistItem {
   final String label;
   final bool isCompleted;
 
+  /// When [isCompleted] last changed, in milliseconds since the epoch (UTC);
+  /// null if it never has (or the save predates timestamps). Per-account
+  /// sync uses it to decide which device's change is newer.
+  final int? updatedAt;
+
   const ChecklistItem({
     required this.id,
     required this.label,
     this.isCompleted = false,
+    this.updatedAt,
   });
 
   /// A brand-new item with a fresh random id (for items the user adds).
@@ -42,11 +48,18 @@ class ChecklistItem {
 
   bool get hasId => id.isNotEmpty;
 
-  ChecklistItem copyWith({String? id, String? label, bool? isCompleted}) {
+  ChecklistItem copyWith({
+    String? id,
+    String? label,
+    bool? isCompleted,
+    int? updatedAt,
+    bool clearUpdatedAt = false,
+  }) {
     return ChecklistItem(
       id: id ?? this.id,
       label: label ?? this.label,
       isCompleted: isCompleted ?? this.isCompleted,
+      updatedAt: clearUpdatedAt ? null : (updatedAt ?? this.updatedAt),
     );
   }
 
@@ -61,11 +74,17 @@ class ChecklistItem {
       id: map['id'] as String? ?? '',
       label: map['label'] as String,
       isCompleted: map['completed'] as bool? ?? false,
+      updatedAt: (map['updatedAt'] as num?)?.toInt(),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'label': label, 'completed': isCompleted};
+    return {
+      'id': id,
+      'label': label,
+      'completed': isCompleted,
+      if (updatedAt != null) 'updatedAt': updatedAt,
+    };
   }
 }
 

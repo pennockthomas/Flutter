@@ -117,8 +117,14 @@ Started 2026-09-27 with Thomas's go-ahead. Backend: Firebase (Auth + Firestore, 
 - [x] Choose the backend after agreeing data, hosting, privacy, and cost requirements. (Firebase, free Spark plan.)
 - [x] Define users, challenges, friendships, invitations, and shared-progress data models.
 - [ ] Implement sign-up, sign-in, sign-out, account recovery, and account deletion. (Email sign-up/in/out done. Sign in with Apple is built but hidden until Thomas has a paid Apple Developer account. No password-reset UI or account deletion yet — `AuthService.sendPasswordResetEmail` exists but nothing calls it; account deletion is required by the App Store.)
-- [ ] Preserve existing local progress when signing in; define merge/conflict rules before adding synchronization.
-- [ ] Implement cloud sync with offline behavior, retries, and visible sync status.
+- [x] Preserve existing local progress when signing in; define merge/conflict rules before adding synchronization. (Per swap, newest change wins, a tie goes to the tick; see `AI_LOG.md` 2026-10-07.)
+- [ ] Implement cloud sync with offline behavior, retries, and visible sync status. **Built 2026-10-07 for ticked swaps** (`ProgressStateSync`, tests pass). Still to do:
+  - [ ] **Unlocked tiers don't sync yet** (`unlocked_nodes` in SharedPreferences, written straight from `start_page.dart`): on a new device the swaps arrive but the tree shows only Start until tiers are unlocked again. Needs the same stamp-and-merge treatment, and the tree must react when tiers arrive from the cloud.
+  - [ ] **Never tested against real Firestore** (needs a sign-in on two devices): try ticking on the phone and watching the browser, offline then online, and a fresh install.
+  - [ ] Show the sync status in the UI (`ProgressStateSync.instance.status`: signed out / syncing / up to date / failed already exists).
+  - [ ] Deploy the new Firestore rules (`firebase deploy --only firestore:rules`); the old rules also allow the new document, so sync works before this, just without the shape check.
+  - [ ] Switching to a *different* account on one device clears the device's swaps first (they're safe in the old account's cloud copy). Swaps ticked as a guest between signing out and signing into another account are lost. Consider a prompt.
+  - [ ] Sync on app resume / connectivity change (today: on sign-in, after each change, and retries every 15 s growing to 5 min).
 - [ ] Replace the three sample friends with real data and useful empty/loading/error states.
 - [ ] Implement friend invitations, acceptance, removal, and appropriate blocking controls.
 - [ ] Make progress sharing private by default and explain exactly what each sharing control exposes.
