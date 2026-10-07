@@ -193,6 +193,22 @@ class ChallengeStore extends ChangeNotifier {
   /// been saved yet.
   Future<String?> exportJson() => _repository.exportJson();
 
+  Future<bool> hasUpdateBackup() => _repository.hasUpdateBackup();
+
+  /// Brings back the swap list as it was before the latest built-in list
+  /// replaced it, then reloads so every screen picks it up.
+  Future<bool> restoreUpdateBackup() {
+    return _serialized(() async {
+      final succeeded = await _repository.restoreUpdateBackup();
+      if (succeeded) await _reloadNow();
+      return succeeded;
+    });
+  }
+
+  /// The swap list in the built-in format (no progress), for a developer to
+  /// ship as the next version of `assets/data/challenge.json`.
+  Future<String?> exportSwapList() => _repository.exportSwapList();
+
   /// Replaces the saved data with [jsonText] if it's valid, then reloads so
   /// every screen picks up the imported data. Returns whether it succeeded.
   Future<bool> importFromJson(String jsonText) {

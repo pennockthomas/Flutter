@@ -12,6 +12,7 @@ class AppSettingKeys {
   static const milestoneAlerts = 'settings.milestone_alerts';
   static const reducedMotion = 'settings.reduced_motion';
   static const introSeen = 'onboarding.intro_seen';
+  static const developerMode = 'settings.developer_mode';
 }
 
 class AppSounds {

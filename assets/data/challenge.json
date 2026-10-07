@@ -1,231 +1,234 @@
-[
-  {
-    "id": "Start",
-    "description": "Welcome to your sustainable journey! Small steps lead to big changes.",
-    "unlocks": ["Kitchen", "Bathroom", "On-The-Go"],
-    "checklist": []
-  },
-  {
-    "id": "Kitchen",
-    "description": "The heart of the home. Replace plastic tools with stainless steel, wood, glass, and natural fibers.",
-    "unlocks": ["Food Storage", "Dish Washing", "Bulk Buying"],
-    "checklist": [
-      {"id": "kitchen.metal-knives", "label": "Metal knives"},
-      {"id": "kitchen.wooden-cutting-boards", "label": "Wooden cutting boards"},
-      {"id": "kitchen.wooden-spoons", "label": "Wooden spoons"},
-      {"id": "kitchen.stainless-steel-spatula", "label": "Stainless steel spatula"},
-      {"id": "kitchen.stainless-steel-whisk", "label": "Stainless steel whisk"},
-      {"id": "kitchen.stainless-steel-ladle", "label": "Stainless steel ladle"},
-      {"id": "kitchen.stainless-steel-tongs", "label": "Stainless steel tongs"},
-      {"id": "kitchen.stainless-steel-mixing-bowls", "label": "Stainless steel mixing bowls"},
-      {"id": "kitchen.glass-measuring-jug", "label": "Glass measuring jug"},
-      {"id": "kitchen.wooden-rolling-pin", "label": "Wooden rolling pin"},
-      {"id": "kitchen.cast-iron-pan", "label": "Cast iron pan"},
-      {"id": "kitchen.steel-colander", "label": "Steel colander"}
-    ]
-  },
-  {
-    "id": "Bathroom",
-    "description": "Personal care does not need to become plastic waste.",
-    "unlocks": ["Solid Soaps", "Dental Care", "Sustainable Shaving"],
-    "checklist": [
-      {"id": "bathroom.bamboo-toothbrush", "label": "Bamboo toothbrush"},
-      {"id": "bathroom.toothpaste-tablets", "label": "Toothpaste tablets"},
-      {"id": "bathroom.glass-jar-cotton-swabs", "label": "Glass jar cotton swabs"},
-      {"id": "bathroom.wooden-nail-brush", "label": "Wooden nail brush"},
-      {"id": "bathroom.stainless-steel-tweezers", "label": "Stainless steel tweezers"},
-      {"id": "bathroom.reusable-cotton-rounds", "label": "Reusable cotton rounds"},
-      {"id": "bathroom.natural-loofah", "label": "Natural loofah"},
-      {"id": "bathroom.refillable-soap-dispenser", "label": "Refillable soap dispenser"}
-    ]
-  },
-  {
-    "id": "On-The-Go",
-    "description": "Prevent waste before it happens while you are out and about.",
-    "unlocks": ["Zero-Waste Kit", "Sustainable Fashion"],
-    "checklist": [
-      {"id": "on-the-go.stainless-steel-water-bottle", "label": "Stainless steel water bottle"},
-      {"id": "on-the-go.reusable-coffee-cup", "label": "Reusable coffee cup"},
-      {"id": "on-the-go.metal-cutlery-set", "label": "Metal cutlery set"},
-      {"id": "on-the-go.cotton-tote-bag", "label": "Cotton tote bag"},
-      {"id": "on-the-go.cotton-produce-bags", "label": "Cotton produce bags"},
-      {"id": "on-the-go.stainless-steel-straw", "label": "Stainless steel straw"},
-      {"id": "on-the-go.reusable-lunch-wrap", "label": "Reusable lunch wrap"},
-      {"id": "on-the-go.metal-snack-container", "label": "Metal snack container"}
-    ]
-  },
-  {
-    "id": "Food Storage",
-    "description": "Replace cling wrap, plastic tubs, and disposable bags with durable storage.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "food-storage.glass-food-containers", "label": "Glass food containers"},
-      {"id": "food-storage.stainless-steel-lunch-box", "label": "Stainless steel lunch box"},
-      {"id": "food-storage.glass-jars", "label": "Glass jars"},
-      {"id": "food-storage.beeswax-wraps", "label": "Beeswax wraps"},
-      {"id": "food-storage.metal-bread-box", "label": "Metal bread box"},
-      {"id": "food-storage.cotton-bowl-covers", "label": "Cotton bowl covers"},
-      {"id": "food-storage.stainless-steel-clips", "label": "Stainless steel clips"},
-      {"id": "food-storage.glass-freezer-containers", "label": "Glass freezer containers"},
-      {"id": "food-storage.ceramic-leftovers-bowl", "label": "Ceramic leftovers bowl"},
-      {"id": "food-storage.reusable-cotton-bread-bag", "label": "Reusable cotton bread bag"}
-    ]
-  },
-  {
-    "id": "Dish Washing",
-    "description": "Swap plastic sponges and bottles for compostable tools and refillable products.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "dish-washing.wooden-dish-brush", "label": "Wooden dish brush"},
-      {"id": "dish-washing.replaceable-brush-head", "label": "Replaceable brush head"},
-      {"id": "dish-washing.compostable-loofah-sponge", "label": "Compostable loofah sponge"},
-      {"id": "dish-washing.copper-scrubber", "label": "Copper scrubber"},
-      {"id": "dish-washing.solid-dish-soap-block", "label": "Solid dish soap block"},
-      {"id": "dish-washing.glass-soap-dispenser", "label": "Glass soap dispenser"},
-      {"id": "dish-washing.wooden-bottle-brush", "label": "Wooden bottle brush"},
-      {"id": "dish-washing.natural-fiber-dish-cloth", "label": "Natural fiber dish cloth"},
-      {"id": "dish-washing.stainless-steel-soap-tray", "label": "Stainless steel soap tray"}
-    ]
-  },
-  {
-    "id": "Bulk Buying",
-    "description": "Shop at refill and zero-waste stores using your own bags, jars, and containers.",
-    "unlocks": ["Pantry Goals"],
-    "checklist": [
-      {"id": "bulk-buying.cotton-produce-bags", "label": "Cotton produce bags"},
-      {"id": "bulk-buying.glass-bulk-jars", "label": "Glass bulk jars"},
-      {"id": "bulk-buying.stainless-steel-scoop", "label": "Stainless steel scoop"},
-      {"id": "bulk-buying.reusable-shopping-tote", "label": "Reusable shopping tote"},
-      {"id": "bulk-buying.refillable-oil-bottle", "label": "Refillable oil bottle"},
-      {"id": "bulk-buying.refillable-vinegar-bottle", "label": "Refillable vinegar bottle"},
-      {"id": "bulk-buying.paper-labels", "label": "Paper labels"},
-      {"id": "bulk-buying.wooden-crate-for-shopping", "label": "Wooden crate for shopping"}
-    ]
-  },
-  {
-    "id": "Pantry Goals",
-    "description": "Build a plastic-free pantry organized with glass, steel, paper, and wood.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "pantry-goals.glass-pasta-jars", "label": "Glass pasta jars"},
-      {"id": "pantry-goals.glass-spice-jars", "label": "Glass spice jars"},
-      {"id": "pantry-goals.metal-funnel", "label": "Metal funnel"},
-      {"id": "pantry-goals.wooden-spice-rack", "label": "Wooden spice rack"},
-      {"id": "pantry-goals.paper-pantry-labels", "label": "Paper pantry labels"},
-      {"id": "pantry-goals.glass-cereal-jars", "label": "Glass cereal jars"},
-      {"id": "pantry-goals.stainless-steel-measuring-spoons", "label": "Stainless steel measuring spoons"},
-      {"id": "pantry-goals.reusable-jar-lids", "label": "Reusable jar lids"}
-    ]
-  },
-  {
-    "id": "Solid Soaps",
-    "description": "Switch to bars and refillables to remove plastic bottles from the shower.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "solid-soaps.shampoo-bar", "label": "Shampoo bar"},
-      {"id": "solid-soaps.conditioner-bar", "label": "Conditioner bar"},
-      {"id": "solid-soaps.body-soap-bar", "label": "Body soap bar"},
-      {"id": "solid-soaps.wooden-soap-dish", "label": "Wooden soap dish"},
-      {"id": "solid-soaps.travel-soap-tin", "label": "Travel soap tin"},
-      {"id": "solid-soaps.refillable-glass-pump-bottle", "label": "Refillable glass pump bottle"},
-      {"id": "solid-soaps.natural-fiber-soap-pouch", "label": "Natural fiber soap pouch"}
-    ]
-  },
-  {
-    "id": "Dental Care",
-    "description": "Use low-waste dental products made from bamboo, glass, metal, or paper.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "dental-care.bamboo-toothbrush", "label": "Bamboo toothbrush"},
-      {"id": "dental-care.toothpaste-tablets", "label": "Toothpaste tablets"},
-      {"id": "dental-care.glass-tablet-jar", "label": "Glass tablet jar"},
-      {"id": "dental-care.silk-dental-floss", "label": "Silk dental floss"},
-      {"id": "dental-care.metal-tongue-scraper", "label": "Metal tongue scraper"},
-      {"id": "dental-care.refillable-mouthwash-tablets", "label": "Refillable mouthwash tablets"},
-      {"id": "dental-care.paper-packaged-interdental-brushes", "label": "Paper-packaged interdental brushes"}
-    ]
-  },
-  {
-    "id": "Sustainable Shaving",
-    "description": "Invest in durable shaving tools instead of disposable razors.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "sustainable-shaving.stainless-steel-safety-razor", "label": "Stainless steel safety razor"},
-      {"id": "sustainable-shaving.metal-razor-blades", "label": "Metal razor blades"},
-      {"id": "sustainable-shaving.shaving-soap-bar", "label": "Shaving soap bar"},
-      {"id": "sustainable-shaving.wooden-shaving-brush", "label": "Wooden shaving brush"},
-      {"id": "sustainable-shaving.blade-recycling-tin", "label": "Blade recycling tin"},
-      {"id": "sustainable-shaving.alum-block", "label": "Alum block"},
-      {"id": "sustainable-shaving.glass-aftershave-bottle", "label": "Glass aftershave bottle"}
-    ]
-  },
-  {
-    "id": "Zero-Waste Kit",
-    "description": "Pack reusable essentials so you can refuse single-use plastic anywhere.",
-    "unlocks": ["Takeout Pro"],
-    "checklist": [
-      {"id": "zero-waste-kit.stainless-steel-water-bottle", "label": "Stainless steel water bottle"},
-      {"id": "zero-waste-kit.reusable-coffee-cup", "label": "Reusable coffee cup"},
-      {"id": "zero-waste-kit.metal-cutlery-set", "label": "Metal cutlery set"},
-      {"id": "zero-waste-kit.cloth-napkin", "label": "Cloth napkin"},
-      {"id": "zero-waste-kit.cotton-tote-bag", "label": "Cotton tote bag"},
-      {"id": "zero-waste-kit.stainless-steel-straw", "label": "Stainless steel straw"},
-      {"id": "zero-waste-kit.small-glass-jar", "label": "Small glass jar"},
-      {"id": "zero-waste-kit.reusable-snack-tin", "label": "Reusable snack tin"}
-    ]
-  },
-  {
-    "id": "Takeout Pro",
-    "description": "Bring your own containers when ordering food to go.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "takeout-pro.stainless-steel-takeaway-box", "label": "Stainless steel takeaway box"},
-      {"id": "takeout-pro.glass-takeaway-container", "label": "Glass takeaway container"},
-      {"id": "takeout-pro.reusable-soup-jar", "label": "Reusable soup jar"},
-      {"id": "takeout-pro.metal-cutlery-pouch", "label": "Metal cutlery pouch"},
-      {"id": "takeout-pro.cloth-napkin", "label": "Cloth napkin"},
-      {"id": "takeout-pro.reusable-pizza-bag", "label": "Reusable pizza bag"},
-      {"id": "takeout-pro.deposit-cup-app-or-card", "label": "Deposit cup app or card"}
-    ]
-  },
-  {
-    "id": "Sustainable Fashion",
-    "description": "Mend clothes and choose natural fibers to reduce plastic and microplastic waste.",
-    "unlocks": ["Community Impact"],
-    "checklist": [
-      {"id": "sustainable-fashion.wooden-clothes-brush", "label": "Wooden clothes brush"},
-      {"id": "sustainable-fashion.metal-safety-pins", "label": "Metal safety pins"},
-      {"id": "sustainable-fashion.sewing-repair-kit", "label": "Sewing repair kit"},
-      {"id": "sustainable-fashion.natural-fiber-clothing", "label": "Natural fiber clothing"},
-      {"id": "sustainable-fashion.cotton-laundry-bag", "label": "Cotton laundry bag"},
-      {"id": "sustainable-fashion.wooden-hangers", "label": "Wooden hangers"},
-      {"id": "sustainable-fashion.secondhand-wool-sweater", "label": "Secondhand wool sweater"},
-      {"id": "sustainable-fashion.linen-shirt", "label": "Linen shirt"}
-    ]
-  },
-  {
-    "id": "Community Impact",
-    "description": "You have mastered home. Now help others reduce plastic too.",
-    "unlocks": ["Eco-Warrior"],
-    "checklist": [
-      {"id": "community-impact.organize-a-local-cleanup", "label": "Organize a local cleanup"},
-      {"id": "community-impact.share-refill-store-map", "label": "Share refill-store map"},
-      {"id": "community-impact.gift-a-starter-zero-waste-kit", "label": "Gift a starter zero-waste kit"},
-      {"id": "community-impact.ask-cafe-to-accept-reusable-cups", "label": "Ask cafe to accept reusable cups"},
-      {"id": "community-impact.start-a-swap-shelf", "label": "Start a swap shelf"},
-      {"id": "community-impact.teach-a-repair-session", "label": "Teach a repair session"}
-    ]
-  },
-  {
-    "id": "Eco-Warrior",
-    "description": "You are a sustainable legend. Continue inspiring those around you.",
-    "unlocks": [],
-    "checklist": [
-      {"id": "eco-warrior.review-your-remaining-plastic-items", "label": "Review your remaining plastic items"},
-      {"id": "eco-warrior.create-a-yearly-replacement-plan", "label": "Create a yearly replacement plan"},
-      {"id": "eco-warrior.help-one-friend-switch", "label": "Help one friend switch"},
-      {"id": "eco-warrior.support-plastic-free-local-policy", "label": "Support plastic-free local policy"},
-      {"id": "eco-warrior.keep-improving-your-checklist", "label": "Keep improving your checklist"}
-    ]
-  }
-]
+{
+  "version": 1,
+  "challenges": [
+    {
+      "id": "Start",
+      "description": "Welcome to your sustainable journey! Small steps lead to big changes.",
+      "unlocks": ["Kitchen", "Bathroom", "On-The-Go"],
+      "checklist": []
+    },
+    {
+      "id": "Kitchen",
+      "description": "The heart of the home. Replace plastic tools with stainless steel, wood, glass, and natural fibers.",
+      "unlocks": ["Food Storage", "Dish Washing", "Bulk Buying"],
+      "checklist": [
+        {"id": "kitchen.metal-knives", "label": "Metal knives"},
+        {"id": "kitchen.wooden-cutting-boards", "label": "Wooden cutting boards"},
+        {"id": "kitchen.wooden-spoons", "label": "Wooden spoons"},
+        {"id": "kitchen.stainless-steel-spatula", "label": "Stainless steel spatula"},
+        {"id": "kitchen.stainless-steel-whisk", "label": "Stainless steel whisk"},
+        {"id": "kitchen.stainless-steel-ladle", "label": "Stainless steel ladle"},
+        {"id": "kitchen.stainless-steel-tongs", "label": "Stainless steel tongs"},
+        {"id": "kitchen.stainless-steel-mixing-bowls", "label": "Stainless steel mixing bowls"},
+        {"id": "kitchen.glass-measuring-jug", "label": "Glass measuring jug"},
+        {"id": "kitchen.wooden-rolling-pin", "label": "Wooden rolling pin"},
+        {"id": "kitchen.cast-iron-pan", "label": "Cast iron pan"},
+        {"id": "kitchen.steel-colander", "label": "Steel colander"}
+      ]
+    },
+    {
+      "id": "Bathroom",
+      "description": "Personal care does not need to become plastic waste.",
+      "unlocks": ["Solid Soaps", "Dental Care", "Sustainable Shaving"],
+      "checklist": [
+        {"id": "bathroom.bamboo-toothbrush", "label": "Bamboo toothbrush"},
+        {"id": "bathroom.toothpaste-tablets", "label": "Toothpaste tablets"},
+        {"id": "bathroom.glass-jar-cotton-swabs", "label": "Glass jar cotton swabs"},
+        {"id": "bathroom.wooden-nail-brush", "label": "Wooden nail brush"},
+        {"id": "bathroom.stainless-steel-tweezers", "label": "Stainless steel tweezers"},
+        {"id": "bathroom.reusable-cotton-rounds", "label": "Reusable cotton rounds"},
+        {"id": "bathroom.natural-loofah", "label": "Natural loofah"},
+        {"id": "bathroom.refillable-soap-dispenser", "label": "Refillable soap dispenser"}
+      ]
+    },
+    {
+      "id": "On-The-Go",
+      "description": "Prevent waste before it happens while you are out and about.",
+      "unlocks": ["Zero-Waste Kit", "Sustainable Fashion"],
+      "checklist": [
+        {"id": "on-the-go.stainless-steel-water-bottle", "label": "Stainless steel water bottle"},
+        {"id": "on-the-go.reusable-coffee-cup", "label": "Reusable coffee cup"},
+        {"id": "on-the-go.metal-cutlery-set", "label": "Metal cutlery set"},
+        {"id": "on-the-go.cotton-tote-bag", "label": "Cotton tote bag"},
+        {"id": "on-the-go.cotton-produce-bags", "label": "Cotton produce bags"},
+        {"id": "on-the-go.stainless-steel-straw", "label": "Stainless steel straw"},
+        {"id": "on-the-go.reusable-lunch-wrap", "label": "Reusable lunch wrap"},
+        {"id": "on-the-go.metal-snack-container", "label": "Metal snack container"}
+      ]
+    },
+    {
+      "id": "Food Storage",
+      "description": "Replace cling wrap, plastic tubs, and disposable bags with durable storage.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "food-storage.glass-food-containers", "label": "Glass food containers"},
+        {"id": "food-storage.stainless-steel-lunch-box", "label": "Stainless steel lunch box"},
+        {"id": "food-storage.glass-jars", "label": "Glass jars"},
+        {"id": "food-storage.beeswax-wraps", "label": "Beeswax wraps"},
+        {"id": "food-storage.metal-bread-box", "label": "Metal bread box"},
+        {"id": "food-storage.cotton-bowl-covers", "label": "Cotton bowl covers"},
+        {"id": "food-storage.stainless-steel-clips", "label": "Stainless steel clips"},
+        {"id": "food-storage.glass-freezer-containers", "label": "Glass freezer containers"},
+        {"id": "food-storage.ceramic-leftovers-bowl", "label": "Ceramic leftovers bowl"},
+        {"id": "food-storage.reusable-cotton-bread-bag", "label": "Reusable cotton bread bag"}
+      ]
+    },
+    {
+      "id": "Dish Washing",
+      "description": "Swap plastic sponges and bottles for compostable tools and refillable products.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "dish-washing.wooden-dish-brush", "label": "Wooden dish brush"},
+        {"id": "dish-washing.replaceable-brush-head", "label": "Replaceable brush head"},
+        {"id": "dish-washing.compostable-loofah-sponge", "label": "Compostable loofah sponge"},
+        {"id": "dish-washing.copper-scrubber", "label": "Copper scrubber"},
+        {"id": "dish-washing.solid-dish-soap-block", "label": "Solid dish soap block"},
+        {"id": "dish-washing.glass-soap-dispenser", "label": "Glass soap dispenser"},
+        {"id": "dish-washing.wooden-bottle-brush", "label": "Wooden bottle brush"},
+        {"id": "dish-washing.natural-fiber-dish-cloth", "label": "Natural fiber dish cloth"},
+        {"id": "dish-washing.stainless-steel-soap-tray", "label": "Stainless steel soap tray"}
+      ]
+    },
+    {
+      "id": "Bulk Buying",
+      "description": "Shop at refill and zero-waste stores using your own bags, jars, and containers.",
+      "unlocks": ["Pantry Goals"],
+      "checklist": [
+        {"id": "bulk-buying.cotton-produce-bags", "label": "Cotton produce bags"},
+        {"id": "bulk-buying.glass-bulk-jars", "label": "Glass bulk jars"},
+        {"id": "bulk-buying.stainless-steel-scoop", "label": "Stainless steel scoop"},
+        {"id": "bulk-buying.reusable-shopping-tote", "label": "Reusable shopping tote"},
+        {"id": "bulk-buying.refillable-oil-bottle", "label": "Refillable oil bottle"},
+        {"id": "bulk-buying.refillable-vinegar-bottle", "label": "Refillable vinegar bottle"},
+        {"id": "bulk-buying.paper-labels", "label": "Paper labels"},
+        {"id": "bulk-buying.wooden-crate-for-shopping", "label": "Wooden crate for shopping"}
+      ]
+    },
+    {
+      "id": "Pantry Goals",
+      "description": "Build a plastic-free pantry organized with glass, steel, paper, and wood.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "pantry-goals.glass-pasta-jars", "label": "Glass pasta jars"},
+        {"id": "pantry-goals.glass-spice-jars", "label": "Glass spice jars"},
+        {"id": "pantry-goals.metal-funnel", "label": "Metal funnel"},
+        {"id": "pantry-goals.wooden-spice-rack", "label": "Wooden spice rack"},
+        {"id": "pantry-goals.paper-pantry-labels", "label": "Paper pantry labels"},
+        {"id": "pantry-goals.glass-cereal-jars", "label": "Glass cereal jars"},
+        {"id": "pantry-goals.stainless-steel-measuring-spoons", "label": "Stainless steel measuring spoons"},
+        {"id": "pantry-goals.reusable-jar-lids", "label": "Reusable jar lids"}
+      ]
+    },
+    {
+      "id": "Solid Soaps",
+      "description": "Switch to bars and refillables to remove plastic bottles from the shower.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "solid-soaps.shampoo-bar", "label": "Shampoo bar"},
+        {"id": "solid-soaps.conditioner-bar", "label": "Conditioner bar"},
+        {"id": "solid-soaps.body-soap-bar", "label": "Body soap bar"},
+        {"id": "solid-soaps.wooden-soap-dish", "label": "Wooden soap dish"},
+        {"id": "solid-soaps.travel-soap-tin", "label": "Travel soap tin"},
+        {"id": "solid-soaps.refillable-glass-pump-bottle", "label": "Refillable glass pump bottle"},
+        {"id": "solid-soaps.natural-fiber-soap-pouch", "label": "Natural fiber soap pouch"}
+      ]
+    },
+    {
+      "id": "Dental Care",
+      "description": "Use low-waste dental products made from bamboo, glass, metal, or paper.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "dental-care.bamboo-toothbrush", "label": "Bamboo toothbrush"},
+        {"id": "dental-care.toothpaste-tablets", "label": "Toothpaste tablets"},
+        {"id": "dental-care.glass-tablet-jar", "label": "Glass tablet jar"},
+        {"id": "dental-care.silk-dental-floss", "label": "Silk dental floss"},
+        {"id": "dental-care.metal-tongue-scraper", "label": "Metal tongue scraper"},
+        {"id": "dental-care.refillable-mouthwash-tablets", "label": "Refillable mouthwash tablets"},
+        {"id": "dental-care.paper-packaged-interdental-brushes", "label": "Paper-packaged interdental brushes"}
+      ]
+    },
+    {
+      "id": "Sustainable Shaving",
+      "description": "Invest in durable shaving tools instead of disposable razors.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "sustainable-shaving.stainless-steel-safety-razor", "label": "Stainless steel safety razor"},
+        {"id": "sustainable-shaving.metal-razor-blades", "label": "Metal razor blades"},
+        {"id": "sustainable-shaving.shaving-soap-bar", "label": "Shaving soap bar"},
+        {"id": "sustainable-shaving.wooden-shaving-brush", "label": "Wooden shaving brush"},
+        {"id": "sustainable-shaving.blade-recycling-tin", "label": "Blade recycling tin"},
+        {"id": "sustainable-shaving.alum-block", "label": "Alum block"},
+        {"id": "sustainable-shaving.glass-aftershave-bottle", "label": "Glass aftershave bottle"}
+      ]
+    },
+    {
+      "id": "Zero-Waste Kit",
+      "description": "Pack reusable essentials so you can refuse single-use plastic anywhere.",
+      "unlocks": ["Takeout Pro"],
+      "checklist": [
+        {"id": "zero-waste-kit.stainless-steel-water-bottle", "label": "Stainless steel water bottle"},
+        {"id": "zero-waste-kit.reusable-coffee-cup", "label": "Reusable coffee cup"},
+        {"id": "zero-waste-kit.metal-cutlery-set", "label": "Metal cutlery set"},
+        {"id": "zero-waste-kit.cloth-napkin", "label": "Cloth napkin"},
+        {"id": "zero-waste-kit.cotton-tote-bag", "label": "Cotton tote bag"},
+        {"id": "zero-waste-kit.stainless-steel-straw", "label": "Stainless steel straw"},
+        {"id": "zero-waste-kit.small-glass-jar", "label": "Small glass jar"},
+        {"id": "zero-waste-kit.reusable-snack-tin", "label": "Reusable snack tin"}
+      ]
+    },
+    {
+      "id": "Takeout Pro",
+      "description": "Bring your own containers when ordering food to go.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "takeout-pro.stainless-steel-takeaway-box", "label": "Stainless steel takeaway box"},
+        {"id": "takeout-pro.glass-takeaway-container", "label": "Glass takeaway container"},
+        {"id": "takeout-pro.reusable-soup-jar", "label": "Reusable soup jar"},
+        {"id": "takeout-pro.metal-cutlery-pouch", "label": "Metal cutlery pouch"},
+        {"id": "takeout-pro.cloth-napkin", "label": "Cloth napkin"},
+        {"id": "takeout-pro.reusable-pizza-bag", "label": "Reusable pizza bag"},
+        {"id": "takeout-pro.deposit-cup-app-or-card", "label": "Deposit cup app or card"}
+      ]
+    },
+    {
+      "id": "Sustainable Fashion",
+      "description": "Mend clothes and choose natural fibers to reduce plastic and microplastic waste.",
+      "unlocks": ["Community Impact"],
+      "checklist": [
+        {"id": "sustainable-fashion.wooden-clothes-brush", "label": "Wooden clothes brush"},
+        {"id": "sustainable-fashion.metal-safety-pins", "label": "Metal safety pins"},
+        {"id": "sustainable-fashion.sewing-repair-kit", "label": "Sewing repair kit"},
+        {"id": "sustainable-fashion.natural-fiber-clothing", "label": "Natural fiber clothing"},
+        {"id": "sustainable-fashion.cotton-laundry-bag", "label": "Cotton laundry bag"},
+        {"id": "sustainable-fashion.wooden-hangers", "label": "Wooden hangers"},
+        {"id": "sustainable-fashion.secondhand-wool-sweater", "label": "Secondhand wool sweater"},
+        {"id": "sustainable-fashion.linen-shirt", "label": "Linen shirt"}
+      ]
+    },
+    {
+      "id": "Community Impact",
+      "description": "You have mastered home. Now help others reduce plastic too.",
+      "unlocks": ["Eco-Warrior"],
+      "checklist": [
+        {"id": "community-impact.organize-a-local-cleanup", "label": "Organize a local cleanup"},
+        {"id": "community-impact.share-refill-store-map", "label": "Share refill-store map"},
+        {"id": "community-impact.gift-a-starter-zero-waste-kit", "label": "Gift a starter zero-waste kit"},
+        {"id": "community-impact.ask-cafe-to-accept-reusable-cups", "label": "Ask cafe to accept reusable cups"},
+        {"id": "community-impact.start-a-swap-shelf", "label": "Start a swap shelf"},
+        {"id": "community-impact.teach-a-repair-session", "label": "Teach a repair session"}
+      ]
+    },
+    {
+      "id": "Eco-Warrior",
+      "description": "You are a sustainable legend. Continue inspiring those around you.",
+      "unlocks": [],
+      "checklist": [
+        {"id": "eco-warrior.review-your-remaining-plastic-items", "label": "Review your remaining plastic items"},
+        {"id": "eco-warrior.create-a-yearly-replacement-plan", "label": "Create a yearly replacement plan"},
+        {"id": "eco-warrior.help-one-friend-switch", "label": "Help one friend switch"},
+        {"id": "eco-warrior.support-plastic-free-local-policy", "label": "Support plastic-free local policy"},
+        {"id": "eco-warrior.keep-improving-your-checklist", "label": "Keep improving your checklist"}
+      ]
+    }
+  ]
+}

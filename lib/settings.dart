@@ -27,6 +27,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final ValueNotifier<double> _backgroundDarkness =
       AppSettings.backgroundDarkness;
 
+  /// Developer tools (the Playground, replaying the intro) are always on in
+  /// debug builds; in a release build they're switched on by tapping the
+  /// version number seven times, and off again from the Developer section.
+  bool _developerMode = false;
+  bool _hasUpdateBackup = false;
+  int _versionTaps = 0;
+  DateTime? _lastVersionTap;
+
   @override
   void initState() {
     super.initState();
@@ -35,11 +43,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     await AppSettings.loadBackgroundDarkness();
+    final prefs = await SharedPreferences.getInstance();
+    final developerMode = prefs.getBool(AppSettingKeys.developerMode) ?? false;
+    final hasBackup = await ChallengeStore.instance.hasUpdateBackup();
+    if (mounted &&
+        (developerMode != _developerMode || hasBackup != _hasUpdateBackup)) {
+      setState(() {
+        _developerMode = developerMode;
+        _hasUpdateBackup = hasBackup;
+      });
+    }
   }
 
-  Future<void> _exportProgress() async {
+  Future<void> _restoreUpdateBackup() async {
     try {
-      final jsonText = await ChallengeStore.instance.exportJson();
+      final restored = await ChallengeStore.instance.restoreUpdateBackup();
+      _showMessage(
+        restored
+            ? 'Your swap list from before the update is back.'
+            : 'No saved swap list to restore.',
+      );
+    } catch (e) {
+      _showMessage('Could not restore the swap list.');
+    }
+  }
+
+  Future<void> _setDeveloperMode(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppSettingKeys.developerMode, enabled);
+    if (!mounted) return;
+    setState(() => _developerMode = enabled);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled ? 'Developer mode is on.' : 'Developer mode is off.',
+          ),
+        ),
+      );
+  }
+
+  void _onVersionTapped() {
+    if (_developerMode) return;
+    final now = DateTime.now();
+    final last = _lastVersionTap;
+    _lastVersionTap = now;
+    // Taps have to follow each other quickly, or the count starts over.
+    _versionTaps = last != null && now.difference(last).inSeconds < 2
+        ? _versionTaps + 1
+        : 1;
+    const needed = 7;
+    if (_versionTaps >= needed) {
+      _versionTaps = 0;
+      _setDeveloperMode(true);
+    } else if (_versionTaps >= 4) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 1),
+            content: Text(
+              '${needed - _versionTaps} more taps to turn on developer mode.',
+            ),
+          ),
+        );
+    }
+  }
+
+  Future<void> _exportProgress() => _shareJson(
+    ChallengeStore.instance.exportJson,
+    fileName: 'ecosteps-progress.json',
+    subject: 'EcoSteps progress',
+    failureMessage: 'Could not export progress.',
+  );
+
+  Future<void> _exportSwapList() => _shareJson(
+    ChallengeStore.instance.exportSwapList,
+    fileName: 'challenge.json',
+    subject: 'EcoSteps swap list',
+    failureMessage: 'Could not export the swap list.',
+  );
+
+  Future<void> _shareJson(
+    Future<String?> Function() produce, {
+    required String fileName,
+    required String subject,
+    required String failureMessage,
+  }) async {
+    try {
+      final jsonText = await produce();
       if (jsonText == null) {
         _showMessage('Nothing to export yet.');
         return;
@@ -63,14 +156,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           XFile.fromData(
             utf8.encode(jsonText),
             mimeType: 'application/json',
-            name: 'ecosteps-progress.json',
+            name: fileName,
           ),
         ],
-        subject: 'EcoSteps progress',
+        subject: subject,
         sharePositionOrigin: sharePositionOrigin,
       );
     } catch (e) {
-      _showMessage('Could not export progress.');
+      _showMessage(failureMessage);
     }
   }
 
@@ -316,8 +409,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                         // Playground can rename and delete challenges, so it's a
-                        // developer tool: debug builds only, never in a release.
-                        if (kDebugMode)
+                        // developer tool: always in debug builds, and in a
+                        // release only once switched on (see _developerMode).
+                        if (kDebugMode || _developerMode)
                           _buildSettingsTile(
                             context,
                             Icons.construction_outlined,
@@ -341,15 +435,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                               ),
+                              _actionTile(
+                                "Export swap list (for a new version)",
+                                _exportSwapList,
+                              ),
+                              if (_hasUpdateBackup)
+                                _actionTile(
+                                  "Restore swap list from before the update",
+                                  _restoreUpdateBackup,
+                                ),
+                              if (_developerMode)
+                                _actionTile(
+                                  "Turn off developer mode",
+                                  () => _setDeveloperMode(false),
+                                ),
                             ],
                           ),
                         const SizedBox(height: 40),
                         Center(
-                          child: Text(
-                            "Version 1.0.4",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 12,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _onVersionTapped,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Text(
+                                "Version 1.0.4",
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.5),
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
                         ),

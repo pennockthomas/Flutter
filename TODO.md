@@ -15,7 +15,7 @@ This checklist consolidates the completeness review and remaining roadmap work. 
 - [ ] Handle save failures without leaving in-memory progress and stored progress inconsistent; show a useful error and allow retry.
 - [ ] Show a clear load-error state with retry/recovery instead of silently presenting an empty profile or challenge list.
 - [x] Validate imported challenge relationships as well as JSON structure, including duplicate IDs, missing references, and cycles that the app cannot safely handle.
-- [ ] Verify export/import scope: challenge data lives in JSON while unlocked nodes and category progress also use preferences. Define whether backups include these and ensure a round trip restores the promised state.
+- [ ] Verify export/import scope: challenge data lives in JSON while unlocked nodes and category progress also use preferences. Define whether backups include these and ensure a round trip restores the promised state. (Update 2026-10-07: unlocked tiers now live in `tier_unlocks.json`, which the export doesn't include either.)
 
 Relevant files: `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/settings.dart`, `lib/friends_page.dart`, and screens that load challenge data.
 

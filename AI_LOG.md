@@ -659,6 +659,37 @@ Files: `lib/progress_merge.dart`, `lib/challenge_repository.dart`, `lib/challeng
 
 Files: `lib/auth_service.dart`, `test/auth_messages_test.dart`, `TODO.md`
 
+## 2026-10-07 — Developer mode switch for release builds
+
+Thomas missed being able to add swaps from the app: since 2026-09-27 the Playground (challenge editor) existed only under Settings → Developer, which is compiled in for debug builds only, so his iPhone and the web app (release builds) had no way in.
+
+- Settings → Developer now shows when `kDebugMode` **or** developer mode is on. Developer mode is switched on by tapping the "Version" line at the bottom of Settings seven times in a row (each tap within 2 seconds of the last; a hint appears from the 4th tap) and persists in the `settings.developer_mode` preference. A "Turn off developer mode" row inside the Developer section switches it off again. Nothing else about the Playground changed (it can still rename and delete challenges; edits are saved to the device's challenge file, items get permanent ids, and ticks sync).
+- Not tested: the 7-tap gesture itself in a release build (the simulator is a debug build, where the section is always visible), and whether a swap added in the Playground, with its text, reaches the account's other devices. Only the tick state syncs (`ItemStamp` carries ids, not names), so an item added on one device has an unknown id on another and its tick is kept in the cloud but not shown there. Making edited catalogues sync would be a separate piece of work.
+
+Files: `lib/settings.dart`, `lib/app_settings.dart`
+
+## 2026-10-07 — Versioned built-in swap list, and an export to produce the next one
+
+Thomas edits the swap list in the Playground and wants those edits to reach everyone. Decision (his): the list belongs to the app and ships with releases; edits are NOT synced between devices. He exports the list from the Playground and gives the file to Claude, who puts it into the app.
+
+**To ship a new swap list** (the workflow):
+1. On the device where the Playground was used: Settings → Developer → "Export swap list (for a new version)". Gives `challenge.json` (share sheet on the phone, a download in the browser).
+2. Thomas hands the file over. Claude checks it (valid JSON, unique challenge and swap ids, every `unlocks` entry exists, no cycles, `Start` present), replaces `assets/data/challenge.json`, and **sets `"version"` to one higher than the current one**. Keep the swap ids as they are: ticks are matched by id.
+3. Run the tests, then publish: web via `flutter build web --release --no-wasm-dry-run` + `firebase deploy --only hosting --project ecosteps-d60b6`; iPhone via `flutter build ios --release` + `xcrun devicectl device install app ...` (installing over the old app keeps data).
+
+**How a device picks up a new version** (`ChallengeRepository.loadChallenges`): the saved file now records `seedVersion`. If the app's list is newer than the saved version, the saved structure is replaced by the app's list (new, renamed, removed and reordered swaps and challenges), and each swap's tick and timestamp are carried over **by swap id**, so ticks survive renames and moves. Swaps and challenges that aren't in the new list are dropped, including ones added in the Playground on that device and never exported (that's the trade-off Thomas accepted). Unlocked tiers are untouched. Ticks for dropped swaps stay in the account's cloud copy, harmlessly.
+- A save from before versions existed is taken to be on the current version (so the first launch after this change doesn't wipe device edits); same or older app version: the previous behaviour (local file wins, brand-new seed challenges are added) is unchanged; a device on a *newer* list than the app is never downgraded.
+- `assets/data/challenge.json` is now `{"version": 1, "challenges": [...]}` (a bare list still loads and counts as version 1).
+- `exportSwapList()` writes the same format with ids and labels only (no ticks, timestamps or other personal data); its `version` is the version the device is on, so the next release uses one higher. A round trip (export, use as the new list) keeps ids and added swaps (tested).
+- `ChallengeRepository` takes an optional `loadSeed` so tests can feed in a different list.
+- **Backup before an update:** when a newer list replaces a device's saved list, the saved file is first copied to `challenge_editor.pre_update_v<new version>.json` (one file per version, so a later update can't overwrite the copy that holds earlier edits). Settings → Developer → "Restore swap list from before the update" (shown only if a copy exists) puts the latest copy back: its structure is restored, the ticks made since are kept (by swap id), and the list is pinned to the current version so the next launch doesn't replace it again. The copies are never deleted automatically. 6 more tests (`seed_version_test.dart`); 105 in total, all passing.
+
+Tests: 12 new in `test/seed_version_test.dart` (a newer list adds, renames, removes and reorders; ticks kept by id, also across a move; device-only edits replaced; same version leaves edits alone; pre-version save keeps its edits once; no downgrade; export format and round trip; the bundled list is valid with unique ids). 99 in total, all passing; analyzer: no warnings.
+
+Not tested on a device: the Export button's share sheet (shares like the progress export) and a version bump on a real install. Known gap, unrelated: the progress export/import doesn't include unlocked tiers (they moved to `tier_unlocks.json` on 2026-10-07).
+
+Files: `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/settings.dart`, `assets/data/challenge.json`, `test/seed_version_test.dart`
+
 ---
 
 ## Known issues not yet fixed
