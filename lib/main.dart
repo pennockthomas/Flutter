@@ -9,6 +9,8 @@ import 'app_shell.dart';
 import 'background_music.dart';
 import 'firebase_options.dart';
 import 'intro_page.dart';
+import 'name_page.dart';
+import 'app_user.dart';
 import 'notifications.dart';
 import 'progress_state_sync.dart';
 import 'progress_sync.dart';
@@ -139,21 +141,28 @@ class _StartupScreenState extends State<StartupScreen>
     if (!mounted || _didNavigate) return;
     _didNavigate = true;
 
-    // First launch shows the intro before Home; after that, straight home.
+    // First launch shows the intro, then asks for a name, before Home. An
+    // install from before names existed is asked for one once. After that,
+    // straight home.
     final introSeen = await IntroPage.hasBeenSeen();
+    await AppUser.load();
     if (!mounted) return;
 
     // Captured now: this screen (and its context) is gone by the time the
     // intro finishes, but the app's navigator outlives it.
     final navigator = Navigator.of(context);
+    void toHome() => navigator.pushReplacement(_fadeRoute(const AppShell()));
+    void toNameThenHome() =>
+        navigator.pushReplacement(_fadeRoute(NamePage(onFinished: toHome)));
+    void afterIntro() => AppUser.hasName ? toHome() : toNameThenHome();
+
     navigator.pushReplacement(
       _fadeRoute(
-        introSeen
+        !introSeen
+            ? IntroPage(onFinished: afterIntro)
+            : AppUser.hasName
             ? const AppShell()
-            : IntroPage(
-                onFinished: () =>
-                    navigator.pushReplacement(_fadeRoute(const AppShell())),
-              ),
+            : NamePage(onFinished: toHome),
       ),
     );
   }

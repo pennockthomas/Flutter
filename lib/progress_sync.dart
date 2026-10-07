@@ -31,6 +31,8 @@ class ProgressSync {
   void start() {
     if (_authSubscription != null) return;
     ChallengeStore.instance.addListener(_scheduleUpload);
+    // A new name is uploaded too, not just new progress.
+    AppUser.listenable.addListener(_scheduleUpload);
     _authSubscription = AuthService.instance.authStateChanges.listen((user) {
       // A different (or no) account means the last upload no longer applies.
       _lastUploaded = null;
@@ -50,15 +52,16 @@ class ProgressSync {
 
     final challenges = await ChallengeStore.instance.ensureLoaded();
     final summary = buildProgressSummary(challenges);
-    final encoded = jsonEncode(summary);
+    final displayName = AppUser.hasName
+        ? AppUser.name
+        : (user.displayName?.isNotEmpty ?? false)
+        ? user.displayName!
+        : 'EcoSteps friend';
+    final encoded = jsonEncode({'summary': summary, 'name': displayName});
     if (encoded == _lastUploaded) return;
 
     final firestore = FirebaseFirestore.instance;
     final userDoc = firestore.collection('users').doc(user.uid);
-    final displayName = (user.displayName?.isNotEmpty ?? false)
-        ? user.displayName!
-        : AppUser.name;
-
     try {
       final batch = firestore.batch()
         ..set(userDoc, {

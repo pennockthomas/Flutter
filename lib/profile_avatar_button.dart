@@ -67,12 +67,15 @@ class _ProfileAvatarButtonState extends State<ProfileAvatarButton> {
                   border: Border.all(color: Colors.white24),
                 ),
                 child: Center(
-                  child: Text(
-                    AppUser.initials,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: size * 0.34,
-                      fontWeight: FontWeight.bold,
+                  child: ValueListenableBuilder<String>(
+                    valueListenable: AppUser.listenable,
+                    builder: (context, _, _) => Text(
+                      AppUser.initials,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: size * 0.34,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

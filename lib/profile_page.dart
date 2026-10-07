@@ -10,6 +10,7 @@ import 'challenge_store.dart';
 import 'friends_page.dart';
 import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
+import 'name_page.dart';
 import 'progress_summary.dart';
 import 'settings.dart';
 import 'sign_in_page.dart';
@@ -280,12 +281,35 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      AppUser.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
+                    InkWell(
+                      onTap: () => showEditNameDialog(context),
+                      child: ValueListenableBuilder<String>(
+                        valueListenable: AppUser.listenable,
+                        builder: (context, _, _) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                AppUser.displayName,
+                                // Two lines before it gets cut: a full name plus the
+                                // pencil doesn't fit on one line beside the avatar.
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.edit_outlined,
+                              color: Colors.white54,
+                              size: 18,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -463,12 +487,15 @@ class _ProgressAvatar extends StatelessWidget {
               border: Border.all(color: Colors.white24),
             ),
             child: Center(
-              child: Text(
-                AppUser.initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+              child: ValueListenableBuilder<String>(
+                valueListenable: AppUser.listenable,
+                builder: (context, _, _) => Text(
+                  AppUser.initials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),

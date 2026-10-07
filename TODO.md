@@ -54,7 +54,7 @@ Relevant files: `lib/notifications.dart`, `lib/settings.dart`, and the three che
 
 ## P2 — Everyday usability and consistency
 
-- [ ] Replace the hardcoded identity with an editable, persisted local name and derived initials; accounts are not required for this. **Now blocks Phase 3c:** every user currently sees "Thomas Pennock" / "TP", and `ProgressSync` falls back to `AppUser.name` for email accounts, so a friend signing up would appear to others as "Thomas Pennock". Ask for a display name in the create-account form and use it everywhere.
+- [x] Replace the hardcoded identity with an editable, persisted local name and derived initials (2026-10-07: asked for on first launch, editable in Profile; synced to the cloud profile). Still open: pre-fill the name from the account when signing in on a new device.
 - [x] Make the displayed impact level reflect progress, or remove the static "Getting Started" label. (Removed with the Settings info rows, 2026-09-27.)
 - [ ] Read the displayed version from package metadata; Settings currently says 1.0.4 while `pubspec.yaml` says 1.0.0+1.
 - [ ] Verify the support contact is real and usable before presenting it to other users. (`support@ecosteps.app` was removed from Settings on 2026-09-27; add a real contact back only once one exists.)

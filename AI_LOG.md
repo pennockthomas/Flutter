@@ -694,6 +694,20 @@ Files: `lib/challenge_repository.dart`, `lib/challenge_store.dart`, `lib/setting
 
 Thomas didn't want the soft overshoot at the zoom limits (added 2026-10-04). `InteractiveViewer` is back to hard `minScale: 0.7` / `maxScale: 1.1`, and `_zoomGive`, the soft limits and `_settleZoom()` are gone. Kept from that change: the 0.7×–1.1× limits, the longer glide (`interactionEndFrictionCoefficient: 0.003`) and the press dip/haptics. Only `lib/start_page.dart` changed. Not yet on any device.
 
+## 2026-10-07 — The user chooses their name (step 1 of the real Friends section)
+
+Everyone saw "Thomas Pennock" / "TP" (hardcoded in `AppUser`), which would have made every friend appear under Thomas's name. Thomas's idea: ask for a name when the app first starts.
+
+- `AppUser` (`lib/app_user.dart`) is now backed by preference `profile.name`: `load()` at startup, `setName()` (trims, collapses spaces, 1–30 characters, no control characters, otherwise refused), `cleanName()`, `hasName`, `displayName` ("You" until a name exists), `initials` (first letter of the first and last word, "?" before a name exists; it used to join every word's initial). `AppUser.listenable` is what screens listen to, so a change shows everywhere at once (Profile name and avatar, the avatar button, the tree's progress menu).
+- **First launch:** splash → intro → `NamePage` ("What should we call you?", `lib/name_page.dart`) → Home. **Installs from before this change** that have seen the intro are asked once, straight after the splash. Not skippable (friends need a name), but any valid name will do.
+- **Changing it:** Profile → tap the name (pencil icon) → dialog (`showEditNameDialog`). Pitfall hit and fixed during the work: disposing the dialog's text controller right after `showDialog` returned crashed while the dialog was animating away; the controller is now owned by the dialog's own state.
+- **Cloud:** `ProgressSync` uploads the chosen name as `users/{uid}.displayName` and now also re-uploads when only the name changes (the unchanged-data check includes the name). With no local name it falls back to the account's name, then to "EcoSteps friend".
+- Not done: signing in on a new device doesn't pre-fill the name from the account (the new device asks first); the name isn't written into the Firebase Auth profile (`displayName` there is only set by Sign in with Apple).
+
+Tests: 11 new, 114 in total, all passing (`test/app_user_test.dart`: validation, initials, persistence, listeners; `test/name_page_test.dart`: the screen and the edit dialog). The startup routing in `main.dart` isn't covered by a test (verified by running it).
+
+Files: `lib/app_user.dart`, `lib/name_page.dart`, `lib/main.dart`, `lib/profile_page.dart`, `lib/profile_avatar_button.dart`, `lib/start_page.dart`, `lib/progress_sync.dart`, `test/app_user_test.dart`, `test/name_page_test.dart`, `TODO.md`
+
 ---
 
 ## Known issues not yet fixed

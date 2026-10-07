@@ -671,12 +671,15 @@ class _StartScreenState extends State<StartScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                AppUser.name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
+                              ValueListenableBuilder<String>(
+                                valueListenable: AppUser.listenable,
+                                builder: (context, _, _) => Text(
+                                  AppUser.displayName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
                                 ),
                               ),
                               const Divider(color: Colors.white24, height: 20),
