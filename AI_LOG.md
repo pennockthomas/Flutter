@@ -727,6 +727,24 @@ Not built: per-friend or per-area sharing toggles, blocking, Friend Updates, rem
 
 Files: `firestore.rules`, `lib/friends_*.dart`, `lib/settings.dart`, `test/friends_*_test.dart`, `test/fake_friends_backend.dart`, `tool/rules_test/`, `TODO.md`
 
+## 2026-10-08 — Houses: groups of friends with shared stats
+
+Thomas's idea: a dropdown at the top of the tree screen that says "Personal" and lets you switch to a house you share with other people. A house starts out named "House", you invite your friends, and it has its own page with house stats: who did the most swaps, and a graph of swaps over time. His decisions: the dropdown lives on the tree screen; **everyone in a house is equal** (anyone can rename it, invite their own friends, remove people or leave); house mates see **counts per day** (never which swaps); graph with the **`fl_chart`** package (added to `pubspec.yaml`).
+
+**Rules tested on the emulator (40 tests pass) and deployed (2026-10-08)** with `firebase deploy --only firestore:rules --project ecosteps-d60b6`. Houses need them: without them creating or joining a house fails with permission denied. Not yet tried end to end with real accounts.
+
+- **Data** (rules in `firestore.rules`): `houses/{id}` = `{name, memberUids (max 8), createdBy}`; `houses/{id}/members/{uid}` = that member's `{name, completed, total, days: {yyyy-MM-dd: count}}`, written only by them and readable by house members; `houseInvites/{houseId}_{uid}` = pending invitations. Joining needs an invitation from a member (the join adds your own uid with `arrayUnion` and the rules check the invitation exists); only a member can invite and only their accepted friends, not someone already inside, not into a full house. A member can remove anyone or leave; the last person leaving deletes the house; when removing someone their numbers are deleted first (while they are still a member). Up to 5 houses per person is enforced in the app only.
+- **UI:** `lib/scope_dropdown.dart` (the pill at the top left of the tree screen: Personal, your houses, invitations with a badge, New house; signed out it offers to sign in), `lib/house_page.dart` (the house view that covers the tree when a house is chosen: name with rename, members with this-week counts and remove, pending invitations with cancel, "Invite a friend" picker, "Who did the most swaps" ranking for all time or this week with a trophy, the graph with 7 days / 30 days / all time and a legend, Leave house), `lib/house_chart.dart` (the `fl_chart` line chart, one coloured line per member). The tree stops animating while a house covers it. The view you last had open is remembered (`scope.house_id`).
+- **Logic:** `house_models.dart`, `house_stats.dart` (swaps per day from the item timestamps, running totals for the graph, `baselineOf` for swaps ticked before timestamps existed, rankings with shared ranks), `houses_backend.dart` / `houses_service.dart` / `houses_firestore.dart` (same pattern as friends), `houses_controller.dart` (your houses, invitations, selected view; falls back to Personal if the house goes away), `house_stats_sync.dart` (while signed in, writes your numbers into each of your houses after a change, a new house or a new name; skips unchanged data; retries on failure; started from `main()` next to the other sync).
+- **What house mates can see:** your name, total done and total, and how many swaps you ticked on each day. Not which swaps. Swaps ticked before timestamps existed have no day, so they count in the total and show up as the starting level of the graph. Un-ticking removes a swap from the day it was ticked.
+- **Not built:** a personal stats page (Personal is just the tree), house mates seeing each other as friends, house notifications, a limit on how many invitations someone can receive.
+- **Top row of the tree screen:** the Personal dropdown (top left) and the profile avatar (top right) are both exactly 44 high and sit at the same distance from the top. The avatar gained the same dark translucent backing and thin border as the dropdown (`black45`, `white24`), on every tab, because it was hard to see over bright parts of the photo.
+- Test pitfall worth remembering: the test fake for houses uses a plain stream controller. A fake built on `async*` made `cancel()` hang forever because cancelling an `async*` stream waits for its next event.
+
+Tests: 74 new (`house_stats_test` 18, `houses_service_test` 15, `house_stats_sync_test` 8, `houses_controller_test` 10, `house_ui_test` 21, plus 20 more rules tests in `tool/rules_test/rules.test.js`, 40 in total). 222 Dart tests in total, all passing.
+
+Files: `firestore.rules`, `lib/house_*.dart`, `lib/houses_*.dart`, `lib/scope_dropdown.dart`, `lib/start_page.dart`, `lib/main.dart`, `pubspec.yaml`, `test/house*_test.dart`, `test/fake_houses_backend.dart`, `tool/rules_test/rules.test.js`
+
 ---
 
 ## Known issues not yet fixed

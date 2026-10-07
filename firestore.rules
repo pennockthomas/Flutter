@@ -119,6 +119,107 @@ service cloud.firestore {
             || resource.data.to == request.auth.uid);
     }
 
+    // ---------------------------------------------------------------- houses
+    // A house is a small group (at most 8 people) who see each other's swap
+    // counts. Everyone in a house has equal rights: any member can rename it,
+    // invite one of their friends, remove people or leave. Nobody can join
+    // without an invitation from a member.
+
+    function houseDoc(houseId) {
+      return /databases/$(database)/documents/houses/$(houseId);
+    }
+
+    function isHouseMember(houseId) {
+      return signedIn() && request.auth.uid in get(houseDoc(houseId)).data.memberUids;
+    }
+
+    function houseName(value) {
+      return value is string && value.size() > 0 && value.size() <= 40;
+    }
+
+    match /houses/{houseId} {
+      allow get: if signedIn() && request.auth.uid in resource.data.memberUids;
+      // "My houses": a query on memberUids array-contains my uid.
+      allow list: if signedIn() && request.auth.uid in resource.data.memberUids;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'memberUids', 'createdBy', 'createdAt'])
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid]
+        && houseName(request.resource.data.name);
+
+      // A member renames the house or removes people (themselves included),
+      // but can never add anyone this way.
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.memberUids
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'memberUids'])
+        && houseName(request.resource.data.name)
+        && request.resource.data.memberUids.size() >= 1
+        && request.resource.data.memberUids.hasOnly(resource.data.memberUids);
+
+      // Joining: only as yourself, only with an invitation, only by adding
+      // your own uid to the end, only while there is room.
+      allow update: if signedIn()
+        && !(request.auth.uid in resource.data.memberUids)
+        && exists(/databases/$(database)/documents/houseInvites/$(houseId + '_' + request.auth.uid))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+        && request.resource.data.memberUids == resource.data.memberUids.concat([request.auth.uid])
+        && request.resource.data.memberUids.size() <= 8;
+
+      // The last person leaving takes the house with them.
+      allow delete: if signedIn()
+        && request.auth.uid in resource.data.memberUids
+        && resource.data.memberUids.size() == 1;
+
+      // Each member's own numbers in this house: totals and swaps per day.
+      // Counts only, never swap names. Everyone in the house can read them.
+      match /members/{memberUid} {
+        allow read: if isHouseMember(houseId);
+        allow create, update: if isOwner(memberUid)
+          && isHouseMember(houseId)
+          && request.resource.data.keys().hasOnly(['name', 'completed', 'total', 'days', 'updatedAt'])
+          && shortText(request.resource.data.name)
+          && request.resource.data.completed is int
+          && request.resource.data.total is int
+          && request.resource.data.days is map
+          && request.resource.data.days.size() <= 401;
+        // Removing someone starts with deleting their numbers (while both
+        // are still members), so any member may.
+        allow delete: if isOwner(memberUid) || isHouseMember(houseId);
+      }
+    }
+
+    // Invitations to a house, "<houseId>_<invitedUid>". Only a member can
+    // invite, only a friend of theirs, and only someone not already inside.
+    match /houseInvites/{inviteId} {
+      allow get: if signedIn() && inviteId.matches('.*_' + request.auth.uid);
+      allow list: if signedIn()
+        && (resource.data.to == request.auth.uid
+            || isHouseMember(resource.data.houseId));
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+            ['houseId', 'houseName', 'from', 'fromName', 'to', 'status', 'createdAt'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && inviteId == request.resource.data.houseId + '_' + request.resource.data.to
+        && request.resource.data.status == 'pending'
+        && shortText(request.resource.data.fromName)
+        && isHouseMember(request.resource.data.houseId)
+        && request.resource.data.houseName == get(houseDoc(request.resource.data.houseId)).data.name
+        && !(request.resource.data.to in get(houseDoc(request.resource.data.houseId)).data.memberUids)
+        && get(houseDoc(request.resource.data.houseId)).data.memberUids.size() < 8
+        && (acceptedFrom(request.auth.uid, request.resource.data.to)
+            || acceptedFrom(request.resource.data.to, request.auth.uid));
+
+      // Declining, cancelling, or clearing it after joining.
+      allow delete: if signedIn()
+        && (resource.data.to == request.auth.uid
+            || resource.data.from == request.auth.uid
+            || isHouseMember(resource.data.houseId));
+    }
+
     // Made-up friends for showing how the Friends screen works. Fake data
     // only, so anyone can read it; only the app's owner can write it.
     match /demoFriends/{demoId} {

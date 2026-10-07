@@ -48,6 +48,17 @@ class _ProfileAvatarButtonState extends State<ProfileAvatarButton> {
           child: Stack(
             alignment: Alignment.center,
             children: [
+              // The same dark backing as the dropdown beside it, so the
+              // button stays visible over the bright parts of the photo.
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+              ),
               SizedBox(
                 width: size,
                 height: size,

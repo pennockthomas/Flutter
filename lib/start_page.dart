@@ -11,6 +11,9 @@ import 'challenge_model.dart';
 import 'challenge_store.dart';
 import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
+import 'house_page.dart';
+import 'houses_controller.dart';
+import 'scope_dropdown.dart';
 import 'notifications.dart';
 import 'profile_avatar_button.dart';
 
@@ -474,6 +477,8 @@ class _StartScreenState extends State<StartScreen>
     final lastTick = _lastPhysicsTick;
     _lastPhysicsTick = elapsed;
     if (isLoading || nodes.isEmpty || lastTick == null) return;
+    // A house is covering the tree: nothing to animate.
+    if (HousesController.instance.selectedHouse != null) return;
     // Clamped so a dropped frame or a resumed ticker can't cause a big jump.
     final dt = ((elapsed - lastTick).inMicroseconds / 1e6).clamp(0.0, 1 / 30);
     if (dt == 0) return;
@@ -625,7 +630,31 @@ class _StartScreenState extends State<StartScreen>
               ),
             ),
 
-          // ✅ Top Left: Go Back Button (Settings Style)
+          _buildProgressMenu(),
+
+          // A house, when one is chosen in the dropdown, covers the tree.
+          ListenableBuilder(
+            listenable: HousesController.instance,
+            builder: (context, _) {
+              final house = HousesController.instance.selectedHouse;
+              if (house == null) return const SizedBox.shrink();
+              return Positioned.fill(
+                child: HouseView(
+                  key: ValueKey(house.id),
+                  house: house,
+                  controller: HousesController.instance,
+                ),
+              );
+            },
+          ),
+
+          // Top left: what you're looking at (Personal or a house).
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 8,
+            left: 16,
+            child: ScopeDropdown(controller: HousesController.instance),
+          ),
+
           // The tree is the app's main tab, so there's no back button; the
           // profile avatar takes the top-right corner like on the other tabs.
           Positioned(
@@ -633,8 +662,6 @@ class _StartScreenState extends State<StartScreen>
             right: 16,
             child: const ProfileAvatarButton(),
           ),
-
-          _buildProgressMenu(),
         ],
       ),
     );

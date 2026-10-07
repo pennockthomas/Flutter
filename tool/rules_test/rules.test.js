@@ -217,6 +217,225 @@ test('demo friends: anyone can read them, only the app owner can write', async (
   );
 });
 
+// ------------------------------------------------------------------ houses
+
+const { arrayUnion, arrayRemove } = require('firebase/firestore');
+
+const newHouse = (members, extra = {}) => ({
+  name: 'House', memberUids: members, createdBy: members[0], createdAt: new Date(), ...extra,
+});
+const invite = (houseId, from, to, name = 'House') => ({
+  houseId, houseName: name, from, fromName: from, to, status: 'pending', createdAt: new Date(),
+});
+const friends = (a, b) => seed((db) => setDoc(doc(db, `friendRequests/${a}_${b}`), accepted(a, b)));
+
+test('houses: you can create one with only yourself in it', async () => {
+  const alice = as('alice');
+  await assertSucceeds(setDoc(doc(alice, 'houses/h1'), newHouse(['alice'])));
+  await assertFails(setDoc(doc(alice, 'houses/h2'), newHouse(['alice', 'bob'])));
+  await assertFails(setDoc(doc(alice, 'houses/h3'), newHouse(['bob'], { createdBy: 'alice' })));
+  await assertFails(setDoc(doc(alice, 'houses/h4'), newHouse(['alice'], { name: '' })));
+  await assertFails(setDoc(doc(alice, 'houses/h5'), newHouse(['alice'], { name: 'x'.repeat(41) })));
+  await assertFails(setDoc(doc(alice, 'houses/h6'), newHouse(['alice'], { extra: 1 })));
+  await assertFails(setDoc(doc(anonymous(), 'houses/h7'), newHouse(['alice'])));
+});
+
+test('houses: only members can read one, and "my houses" works as a query', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
+    await setDoc(doc(db, 'houses/h2'), newHouse(['carol']));
+  });
+  await assertSucceeds(getDoc(doc(as('bob'), 'houses/h1')));
+  await assertFails(getDoc(doc(as('dave'), 'houses/h1')));
+  await assertFails(getDoc(doc(anonymous(), 'houses/h1')));
+  const mine = await assertSucceeds(
+    getDocs(query(collection(as('bob'), 'houses'), where('memberUids', 'array-contains', 'bob'))),
+  );
+  if (mine.size !== 1) throw new Error(`expected 1 house, got ${mine.size}`);
+  await assertFails(getDocs(collection(as('bob'), 'houses')));
+  await assertFails(
+    getDocs(query(collection(as('bob'), 'houses'), where('memberUids', 'array-contains', 'carol'))),
+  );
+});
+
+test('houses: any member can rename it, a stranger cannot', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob'])));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'houses/h1'), { name: 'Our place' }));
+  await assertFails(updateDoc(doc(as('bob'), 'houses/h1'), { name: '' }));
+  await assertFails(updateDoc(doc(as('dave'), 'houses/h1'), { name: 'Mine now' }));
+  await assertFails(updateDoc(doc(as('bob'), 'houses/h1'), { createdBy: 'bob' }));
+});
+
+test('houses: a member can remove another member or leave, never add', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob', 'carol'])));
+  const bob = as('bob');
+  await assertFails(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayUnion('dave') }));
+  await assertSucceeds(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayRemove('carol') }));
+  await assertSucceeds(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayRemove('bob') }));
+  await assertFails(updateDoc(doc(as('carol'), 'houses/h1'), { name: 'removed people cannot edit' }));
+});
+
+test('houses: nobody can empty a house by editing it', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  await assertFails(updateDoc(doc(as('alice'), 'houses/h1'), { memberUids: [] }));
+});
+
+test('houses: joining needs an invitation, and only adds yourself', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  const bob = as('bob');
+  await assertFails(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayUnion('bob') }));
+
+  await seed((db) => setDoc(doc(db, 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob')));
+  await assertFails(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayUnion('carol') }));
+  await assertFails(updateDoc(doc(bob, 'houses/h1'), { memberUids: ['bob'] }));
+  await assertFails(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayUnion('bob'), name: 'Mine' }));
+  await assertSucceeds(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayUnion('bob') }));
+});
+
+test('houses: an invitation for one person does not let another join', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice']));
+    await setDoc(doc(db, 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob'));
+  });
+  await assertFails(updateDoc(doc(as('carol'), 'houses/h1'), { memberUids: arrayUnion('carol') }));
+});
+
+test('houses: a full house (8) cannot be joined', async () => {
+  const eight = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(eight));
+    await setDoc(doc(db, 'houseInvites/h1_ivy'), invite('h1', 'a', 'ivy'));
+  });
+  await assertFails(updateDoc(doc(as('ivy'), 'houses/h1'), { memberUids: arrayUnion('ivy') }));
+});
+
+test('houses: only the last member can delete the house', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
+    await setDoc(doc(db, 'houses/h2'), newHouse(['carol']));
+  });
+  await assertFails(deleteDoc(doc(as('alice'), 'houses/h1')));
+  await assertFails(deleteDoc(doc(as('alice'), 'houses/h2')));
+  await assertSucceeds(deleteDoc(doc(as('carol'), 'houses/h2')));
+});
+
+// ---------------------------------------------------------- house invites
+
+test('invites: a member can invite their own friend', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  await friends('alice', 'bob');
+  await assertSucceeds(setDoc(doc(as('alice'), 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob')));
+});
+
+test('invites: not for someone who is not your friend, or while only pending', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  await assertFails(setDoc(doc(as('alice'), 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob')));
+  await seed((db) => setDoc(doc(db, 'friendRequests/alice_bob'), pending('alice', 'bob')));
+  await assertFails(setDoc(doc(as('alice'), 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob')));
+});
+
+test('invites: a non-member cannot invite, nor forge who sent it', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  await friends('dave', 'bob');
+  await friends('alice', 'bob');
+  await assertFails(setDoc(doc(as('dave'), 'houseInvites/h1_bob'), invite('h1', 'dave', 'bob')));
+  await assertFails(setDoc(doc(as('dave'), 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob')));
+});
+
+test('invites: not to someone already inside, not with the wrong id or house name', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob'])));
+  await friends('alice', 'bob');
+  await friends('alice', 'carol');
+  const alice = as('alice');
+  await assertFails(setDoc(doc(alice, 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob')));
+  await assertFails(setDoc(doc(alice, 'houseInvites/wrong'), invite('h1', 'alice', 'carol')));
+  await assertFails(setDoc(doc(alice, 'houseInvites/h1_carol'), invite('h1', 'alice', 'carol', 'Fake name')));
+  await assertFails(setDoc(doc(alice, 'houseInvites/h1_alice'), invite('h1', 'alice', 'alice')));
+});
+
+test('invites: no inviting into a full house', async () => {
+  const eight = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(eight)));
+  await friends('a', 'ivy');
+  await assertFails(setDoc(doc(as('a'), 'houseInvites/h1_ivy'), invite('h1', 'a', 'ivy')));
+});
+
+test('invites: who can see and remove one', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'carol']));
+    await setDoc(doc(db, 'houseInvites/h1_bob'), invite('h1', 'alice', 'bob'));
+  });
+  await assertSucceeds(getDoc(doc(as('bob'), 'houseInvites/h1_bob')));
+  await assertFails(getDoc(doc(as('dave'), 'houseInvites/h1_bob')));
+  const incoming = await assertSucceeds(
+    getDocs(query(collection(as('bob'), 'houseInvites'), where('to', '==', 'bob'))),
+  );
+  if (incoming.size !== 1) throw new Error('bob should see his invitation');
+  await assertSucceeds(
+    getDocs(query(collection(as('carol'), 'houseInvites'), where('houseId', '==', 'h1'))),
+  );
+  await assertFails(
+    getDocs(query(collection(as('dave'), 'houseInvites'), where('houseId', '==', 'h1'))),
+  );
+  await assertFails(deleteDoc(doc(as('dave'), 'houseInvites/h1_bob')));
+  await assertSucceeds(deleteDoc(doc(as('bob'), 'houseInvites/h1_bob')));
+});
+
+// ------------------------------------------------------ house member stats
+
+const stats = (extra = {}) => ({
+  name: 'Alice', completed: 5, total: 118, days: { '2026-10-05': 2 }, updatedAt: new Date(), ...extra,
+});
+
+test('house stats: members read each other, outsiders cannot', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
+    await setDoc(doc(db, 'houses/h1/members/alice'), stats());
+  });
+  await assertSucceeds(getDoc(doc(as('bob'), 'houses/h1/members/alice')));
+  await assertSucceeds(getDocs(collection(as('bob'), 'houses/h1/members')));
+  await assertFails(getDoc(doc(as('dave'), 'houses/h1/members/alice')));
+  await assertFails(getDoc(doc(anonymous(), 'houses/h1/members/alice')));
+});
+
+test('house stats: you write only your own, with the right shape', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob'])));
+  const alice = as('alice');
+  await assertSucceeds(setDoc(doc(alice, 'houses/h1/members/alice'), stats()));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/bob'), stats({ name: 'Bob' })));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ extra: 1 })));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ completed: 'many' })));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ days: 'x' })));
+  const tooMany = Object.fromEntries(Array.from({ length: 402 }, (_, i) => [`d${i}`, 1]));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ days: tooMany })));
+});
+
+test('house stats: someone who is not in the house cannot write', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  await assertFails(setDoc(doc(as('dave'), 'houses/h1/members/dave'), stats({ name: 'Dave' })));
+});
+
+test('house stats: a member can delete someone\'s numbers before removing them', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
+    await setDoc(doc(db, 'houses/h1/members/bob'), stats({ name: 'Bob' }));
+  });
+  await assertFails(deleteDoc(doc(as('dave'), 'houses/h1/members/bob')));
+  await assertSucceeds(deleteDoc(doc(as('alice'), 'houses/h1/members/bob')));
+});
+
+test('leaving a house: your numbers go first, then you', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
+    await setDoc(doc(db, 'houses/h1/members/bob'), stats({ name: 'Bob' }));
+  });
+  const bob = as('bob');
+  await assertSucceeds(deleteDoc(doc(bob, 'houses/h1/members/bob')));
+  await assertSucceeds(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayRemove('bob') }));
+  await assertFails(getDoc(doc(bob, 'houses/h1')));
+  await assertFails(setDoc(doc(bob, 'houses/h1/members/bob'), stats({ name: 'Bob' })));
+});
+
 // ------------------------------------------------------------ everything else
 
 test('anything not listed is denied', async () => {

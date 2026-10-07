@@ -12,6 +12,8 @@ import 'intro_page.dart';
 import 'name_page.dart';
 import 'app_user.dart';
 import 'notifications.dart';
+import 'house_stats_sync.dart';
+import 'houses_controller.dart';
 import 'progress_state_sync.dart';
 import 'progress_sync.dart';
 
@@ -27,6 +29,8 @@ void main() async {
     );
     ProgressSync.instance.start();
     ProgressStateSync.instance.start();
+    HouseStatsSync.instance.start();
+    HousesController.instance.start();
   } catch (e) {
     // Accounts/sync are additive — the app must stay fully usable offline
     // even if Firebase can't be reached (no network, misconfigured project).
