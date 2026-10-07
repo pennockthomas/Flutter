@@ -8,11 +8,11 @@ import 'app_settings.dart';
 import 'app_page_route.dart';
 import 'app_user.dart';
 import 'challenge_model.dart';
-import 'challenge_store.dart';
 import 'fading_edge_scroll_view.dart';
 import 'glass_panel.dart';
 import 'house_page.dart';
 import 'houses_controller.dart';
+import 'progress_store.dart';
 import 'scope_dropdown.dart';
 import 'notifications.dart';
 import 'profile_avatar_button.dart';
@@ -121,7 +121,7 @@ class _StartScreenState extends State<StartScreen>
   }
 
   Future<void> _saveChallengeData() async {
-    await ChallengeStore.instance.save(challengeData);
+    await _store.save(challengeData);
   }
 
   void _syncNodeCompletionFromChecklist(String label) {
@@ -136,7 +136,9 @@ class _StartScreenState extends State<StartScreen>
   @override
   void initState() {
     super.initState();
-    ChallengeStore.instance.addListener(_onChallengesChanged);
+    _attached = _store..addListener(_onChallengesChanged);
+    HousesController.instance.addListener(_onScopeChanged);
+    HousesController.instance.onHouseWriteFailed = _onHouseWriteFailed;
     _loadInitialData();
 
     _physicsTicker = createTicker(_updatePhysics)..start();
@@ -172,10 +174,33 @@ class _StartScreenState extends State<StartScreen>
       );
   }
 
+  /// The swaps and branches shown: yours, or the open house's shared tree.
+  ProgressStore get _store => HousesController.instance.activeStore;
+  ProgressStore? _attached;
+
+  /// The dropdown changed: switch to the other store and rebuild the tree.
+  void _onScopeChanged() {
+    if (!mounted || identical(_store, _attached)) return;
+    _attached?.removeListener(_onChallengesChanged);
+    _attached = _store..addListener(_onChallengesChanged);
+    _rebuildTree();
+  }
+
+  void _onHouseWriteFailed(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text("Couldn't save that for the house. Try again."),
+        ),
+      );
+  }
+
   void _onChallengesChanged() {
     if (!mounted || isLoading) return;
     setState(() {
-      challengeData = ChallengeStore.instance.challenges;
+      challengeData = _store.challenges;
       for (final label in challengeData.keys) {
         _syncNodeCompletionFromChecklist(label);
       }
@@ -188,7 +213,7 @@ class _StartScreenState extends State<StartScreen>
   /// Newly unlocked tiers grow in; if a tier was locked again (a reset
   /// elsewhere) the tree is rebuilt, since bubbles can't be un-spawned.
   void _reconcileTiers() {
-    final unlocked = ChallengeStore.instance.unlockedTiers;
+    final unlocked = _store.unlockedTiers;
     if (nodes.any((n) => n.hasSpawnedChildren && !unlocked.contains(n.label))) {
       _rebuildTree();
       return;
@@ -243,7 +268,7 @@ class _StartScreenState extends State<StartScreen>
 
   Future<void> _loadInitialData() async {
     try {
-      final tempMap = await ChallengeStore.instance.ensureLoaded();
+      final tempMap = await _store.ensureLoaded();
 
       List<String> mainTiers = tempMap["Start"]?.unlocks ?? [];
       Map<String, int> dynamicCategories = {
@@ -264,7 +289,7 @@ class _StartScreenState extends State<StartScreen>
         ];
       });
 
-      _spawnUnlockedTiers(ChallengeStore.instance.unlockedTiers);
+      _spawnUnlockedTiers(_store.unlockedTiers);
       for (final label in challengeData.keys) {
         _syncNodeCompletionFromChecklist(label);
       }
@@ -316,8 +341,8 @@ class _StartScreenState extends State<StartScreen>
               .toList(),
         ),
     };
-    await ChallengeStore.instance.save(resetChallenges);
-    await ChallengeStore.instance.lockAllTiers();
+    await _store.save(resetChallenges);
+    await _store.lockAllTiers();
 
     if (!mounted) return;
     await _rebuildTree();
@@ -367,7 +392,7 @@ class _StartScreenState extends State<StartScreen>
     if (!isRestoring) {
       // Recorded first: a sync or reconcile that runs while the sound plays
       // then sees this tier as unlocked rather than as a stray open bubble.
-      await ChallengeStore.instance.setTierUnlocked(currentLabel, true);
+      await _store.setTierUnlocked(currentLabel, true);
       await AppSettings.playSoundEffectIfEnabled(AppSounds.tierUnlocked);
     }
 
@@ -425,10 +450,12 @@ class _StartScreenState extends State<StartScreen>
     });
     if (!challenge.isFullyCompleted && updatedChallenge.isFullyCompleted) {
       await AppSettings.playSoundEffectIfEnabled(AppSounds.challengeFinished);
-      await NotificationService.instance.showMilestoneAlert(
-        title: 'Challenge complete!',
-        body: 'You finished every swap in $label.',
-      );
+      if (_store.isPersonal) {
+        await NotificationService.instance.showMilestoneAlert(
+          title: 'Challenge complete!',
+          body: 'You finished every swap in $label.',
+        );
+      }
     } else {
       await AppSettings.playSystemSoundIfEnabled();
     }
@@ -477,8 +504,6 @@ class _StartScreenState extends State<StartScreen>
     final lastTick = _lastPhysicsTick;
     _lastPhysicsTick = elapsed;
     if (isLoading || nodes.isEmpty || lastTick == null) return;
-    // A house is covering the tree: nothing to animate.
-    if (HousesController.instance.selectedHouse != null) return;
     // Clamped so a dropped frame or a resumed ticker can't cause a big jump.
     final dt = ((elapsed - lastTick).inMicroseconds / 1e6).clamp(0.0, 1 / 30);
     if (dt == 0) return;
@@ -632,17 +657,44 @@ class _StartScreenState extends State<StartScreen>
 
           _buildProgressMenu(),
 
-          // A house, when one is chosen in the dropdown, covers the tree.
+          // In a house: a button to its page (members, invitations, who did
+          // the most swaps, the graph).
           ListenableBuilder(
             listenable: HousesController.instance,
             builder: (context, _) {
               final house = HousesController.instance.selectedHouse;
               if (house == null) return const SizedBox.shrink();
-              return Positioned.fill(
-                child: HouseView(
-                  key: ValueKey(house.id),
-                  house: house,
-                  controller: HousesController.instance,
+              return Positioned(
+                top: MediaQuery.paddingOf(context).top + 8,
+                right: 16 + 44 + 10,
+                child: Semantics(
+                  button: true,
+                  label: 'House stats and members',
+                  child: GestureDetector(
+                    key: const Key('house-page-button'),
+                    onTap: () => Navigator.push(
+                      context,
+                      appPageRoute(
+                        HousePage(
+                          house: house,
+                          controller: HousesController.instance,
+                        ),
+                      ),
+                    ),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Icon(
+                        Icons.bar_chart_rounded,
+                        color: Colors.greenAccent,
+                      ),
+                    ),
+                  ),
                 ),
               );
             },
@@ -701,7 +753,11 @@ class _StartScreenState extends State<StartScreen>
                               ValueListenableBuilder<String>(
                                 valueListenable: AppUser.listenable,
                                 builder: (context, _, _) => Text(
-                                  AppUser.displayName,
+                                  HousesController
+                                          .instance
+                                          .selectedHouse
+                                          ?.name ??
+                                      AppUser.displayName,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -761,16 +817,19 @@ class _StartScreenState extends State<StartScreen>
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              TextButton.icon(
-                                onPressed: _confirmResetProgress,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.orangeAccent,
-                                  padding: EdgeInsets.zero,
+                              // Only your own tree can be reset, not a house's.
+                              if (_store.isPersonal) ...[
+                                const SizedBox(height: 8),
+                                TextButton.icon(
+                                  onPressed: _confirmResetProgress,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.orangeAccent,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text("Reset progress"),
                                 ),
-                                icon: const Icon(Icons.refresh, size: 18),
-                                label: const Text("Reset progress"),
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -1088,7 +1147,11 @@ class _StartScreenState extends State<StartScreen>
 
   @override
   void dispose() {
-    ChallengeStore.instance.removeListener(_onChallengesChanged);
+    _attached?.removeListener(_onChallengesChanged);
+    HousesController.instance.removeListener(_onScopeChanged);
+    if (HousesController.instance.onHouseWriteFailed == _onHouseWriteFailed) {
+      HousesController.instance.onHouseWriteFailed = null;
+    }
     _physicsTicker.dispose();
     _cameraController.dispose();
     _transformController.dispose();

@@ -6,12 +6,16 @@ import 'package:flut/houses_backend.dart';
 /// An in-memory [HousesBackend] for tests.
 class FakeHousesBackend implements HousesBackend {
   final Map<String, House> houses = {};
-  final Map<String, Map<String, HouseMember>> stats = {};
+  final Map<String, Map<String, String>> names = {};
+  final Map<String, Map<String, HouseSwap>> swaps = {};
+  final Map<String, Map<String, HouseTier>> tiers = {};
   final Map<String, HouseInvite> invites = {};
   final _changes = StreamController<void>.broadcast();
 
   int publishCount = 0;
   int failPublishTimes = 0;
+  int failWriteTimes = 0;
+  int writeCount = 0;
   int _nextId = 1;
 
   void _changed() => _changes.add(null);
@@ -50,8 +54,16 @@ class FakeHousesBackend implements HousesBackend {
   );
 
   @override
-  Stream<List<HouseMember>> watchMemberStats(String houseId) =>
-      _live(() => [...?stats[houseId]?.values]);
+  Stream<Map<String, String>> watchMemberNames(String houseId) =>
+      _live(() => {...?names[houseId]});
+
+  @override
+  Stream<List<HouseSwap>> watchSwaps(String houseId) =>
+      _live(() => [...?swaps[houseId]?.values]);
+
+  @override
+  Stream<List<HouseTier>> watchTiers(String houseId) =>
+      _live(() => [...?tiers[houseId]?.values]);
 
   @override
   Stream<List<HouseInvite>> watchMyInvites(String uid) => _live(
@@ -119,7 +131,7 @@ class FakeHousesBackend implements HousesBackend {
 
   @override
   Future<void> removeMember(House house, String memberUid) async {
-    stats[house.id]?.remove(memberUid);
+    names[house.id]?.remove(memberUid);
     if (house.memberUids.length <= 1) {
       houses.remove(house.id);
     } else {
@@ -137,17 +149,36 @@ class FakeHousesBackend implements HousesBackend {
   }
 
   @override
-  Future<void> publishStats(
-    String houseId,
-    String uid,
-    HouseMember member,
-  ) async {
+  Future<void> writeSwaps(String houseId, List<HouseSwap> changed) async {
+    if (failWriteTimes > 0) {
+      failWriteTimes--;
+      throw StateError('offline');
+    }
+    writeCount++;
+    for (final swap in changed) {
+      (swaps[houseId] ??= {})[swap.id] = swap;
+    }
+    _changed();
+  }
+
+  @override
+  Future<void> writeTier(String houseId, HouseTier tier) async {
+    if (failWriteTimes > 0) {
+      failWriteTimes--;
+      throw StateError('offline');
+    }
+    (tiers[houseId] ??= {})[tier.label] = tier;
+    _changed();
+  }
+
+  @override
+  Future<void> publishName(String houseId, String uid, String name) async {
     if (failPublishTimes > 0) {
       failPublishTimes--;
       throw StateError('offline');
     }
     publishCount++;
-    (stats[houseId] ??= {})[uid] = member;
+    (names[houseId] ??= {})[uid] = name;
     _changed();
   }
 }

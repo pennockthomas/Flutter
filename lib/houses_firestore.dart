@@ -8,7 +8,8 @@ import 'houses_backend.dart';
 /// `firestore.rules` (and tested in `tool/rules_test`):
 ///
 /// - `houses/{id}`: name, memberUids, createdBy
-/// - `houses/{id}/members/{uid}`: that member's totals and swaps per day
+/// - `houses/{id}/members/{uid}`: that member's name
+/// - `houses/{id}/swaps/{swapId}` and `tiers/{label}`: the shared tree
 /// - `houseInvites/{houseId}_{uid}`: pending invitations
 class FirestoreHousesBackend implements HousesBackend {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
@@ -33,14 +34,40 @@ class FirestoreHousesBackend implements HousesBackend {
   }
 
   @override
-  Stream<List<HouseMember>> watchMemberStats(String houseId) {
+  Stream<Map<String, String>> watchMemberNames(String houseId) {
     return _house(houseId)
         .collection('members')
         .snapshots()
         .map(
+          (snapshot) => {
+            for (final doc in snapshot.docs)
+              doc.id: (doc.data()['name'] as String?) ?? '',
+          },
+        );
+  }
+
+  @override
+  Stream<List<HouseSwap>> watchSwaps(String houseId) {
+    return _house(houseId)
+        .collection('swaps')
+        .snapshots()
+        .map(
           (snapshot) => [
             for (final doc in snapshot.docs)
-              HouseMember.fromData(doc.id, doc.data()),
+              HouseSwap.fromData(doc.id, doc.data()),
+          ],
+        );
+  }
+
+  @override
+  Stream<List<HouseTier>> watchTiers(String houseId) {
+    return _house(houseId)
+        .collection('tiers')
+        .snapshots()
+        .map(
+          (snapshot) => [
+            for (final doc in snapshot.docs)
+              HouseTier.fromData(doc.id, doc.data()),
           ],
         );
   }
@@ -124,9 +151,27 @@ class FirestoreHousesBackend implements HousesBackend {
   }
 
   @override
-  Future<void> publishStats(String houseId, String uid, HouseMember stats) {
+  Future<void> writeSwaps(String houseId, List<HouseSwap> swaps) async {
+    // A batch holds up to 500 writes; a tree has about a hundred swaps.
+    final batch = _db.batch();
+    final collection = _house(houseId).collection('swaps');
+    for (final swap in swaps) {
+      batch.set(collection.doc(swap.id), swap.toData());
+    }
+    await batch.commit();
+  }
+
+  @override
+  Future<void> writeTier(String houseId, HouseTier tier) {
+    return _house(
+      houseId,
+    ).collection('tiers').doc(tier.label).set(tier.toData());
+  }
+
+  @override
+  Future<void> publishName(String houseId, String uid, String name) {
     return _house(houseId).collection('members').doc(uid).set({
-      ...stats.toData(),
+      'name': name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

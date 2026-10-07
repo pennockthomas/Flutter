@@ -2,10 +2,13 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flut/challenge_model.dart';
 import 'package:flut/friends_service.dart';
+import 'package:flut/progress_store.dart';
 import 'package:flut/house_models.dart';
 import 'package:flut/houses_controller.dart';
 import 'package:flut/houses_service.dart';
@@ -26,14 +29,43 @@ Future<void> _until(bool Function() condition, {String? reason}) async {
   }
 }
 
+/// Stands in for the personal store: the controller only hands it out.
+class _PersonalStub extends ChangeNotifier implements ProgressStore {
+  @override
+  bool get isPersonal => true;
+  @override
+  Map<String, Challenge> get challenges => {};
+  @override
+  Future<Map<String, Challenge>> ensureLoaded() async => {};
+  @override
+  Future<void> save(Map<String, Challenge> challenges) async {}
+  @override
+  Set<String> get unlockedTiers => {};
+  @override
+  Future<void> setTierUnlocked(String label, bool unlocked) async {}
+  @override
+  Future<void> lockAllTiers() async {}
+}
+
 void main() {
   late FakeHousesBackend backend;
   late StreamController<String?> uids;
   late HousesController controller;
 
+  final personal = _PersonalStub();
+
   HousesController make() => HousesController(
     service: HousesService(backend),
     friends: FriendsService(FakeFriendsBackend()),
+    personal: personal,
+    loadCatalog: () async => {
+      'Kitchen': const Challenge(
+        label: 'Kitchen',
+        description: '',
+        unlocks: [],
+        checklist: [ChecklistItem(id: 'k.knives', label: 'Metal knives')],
+      ),
+    },
   );
 
   Future<void> signIn(String uid) async {
@@ -206,5 +238,111 @@ void main() {
 
     expect(controller.selectedHouse, isNull);
     expect(controller.houses, isEmpty);
+  });
+
+  group('which tree is active', () {
+    test('Personal uses your own data', () async {
+      await signIn('me');
+
+      expect(controller.activeStore, same(personal));
+      expect(controller.houseStore, isNull);
+    });
+
+    test("a house uses the house's shared tree", () async {
+      backend.addHouse(_house('h1', ['me']));
+      await signIn('me');
+      await _until(() => controller.houses.isNotEmpty, reason: 'house');
+
+      await controller.select('h1');
+
+      expect(controller.activeStore.isPersonal, isFalse);
+      expect(controller.houseStore!.houseId, 'h1');
+      expect(controller.houseStore!.uid, 'me');
+      final challenges = await controller.activeStore.ensureLoaded();
+      expect(challenges.keys, ['Kitchen']);
+    });
+
+    test('going back to Personal drops the house tree', () async {
+      backend.addHouse(_house('h1', ['me']));
+      await signIn('me');
+      await _until(() => controller.houses.isNotEmpty, reason: 'house');
+      await controller.select('h1');
+
+      await controller.select(null);
+
+      expect(controller.activeStore, same(personal));
+      expect(controller.houseStore, isNull);
+    });
+
+    test('switching houses gives each its own tree', () async {
+      backend.addHouse(_house('h1', ['me']));
+      backend.addHouse(_house('h2', ['me']));
+      await signIn('me');
+      await _until(() => controller.houses.length == 2, reason: 'houses');
+
+      await controller.select('h1');
+      final first = controller.houseStore;
+      await controller.select('h2');
+
+      expect(controller.houseStore!.houseId, 'h2');
+      expect(controller.houseStore, isNot(same(first)));
+    });
+
+    test('a tick made in a house is saved to that house', () async {
+      backend.addHouse(_house('h1', ['me']));
+      await signIn('me');
+      await _until(() => controller.houses.isNotEmpty, reason: 'house');
+      await controller.select('h1');
+      final store = controller.activeStore;
+      final challenges = await store.ensureLoaded();
+
+      await store.save({
+        'Kitchen': challenges['Kitchen']!.copyWith(
+          checklist: [
+            challenges['Kitchen']!.checklist.single.copyWith(isCompleted: true),
+          ],
+        ),
+      });
+      await _until(() => backend.swaps['h1'] != null, reason: 'the write');
+
+      expect(backend.swaps['h1']!['k.knives']!.by, 'me');
+    });
+
+    test('signing out goes back to your own data', () async {
+      backend.addHouse(_house('h1', ['me']));
+      await signIn('me');
+      await _until(() => controller.houses.isNotEmpty, reason: 'house');
+      await controller.select('h1');
+
+      uids.add(null);
+      await _until(() => !controller.isSignedIn, reason: 'sign-out');
+
+      expect(controller.activeStore, same(personal));
+    });
+
+    test(
+      'a refused change in a house is reported through the controller',
+      () async {
+        backend.addHouse(_house('h1', ['me']));
+        await signIn('me');
+        await _until(() => controller.houses.isNotEmpty, reason: 'house');
+        await controller.select('h1');
+        Object? reported;
+        controller.onHouseWriteFailed = (e) => reported = e;
+        backend.failWriteTimes = 1;
+        final challenges = await controller.activeStore.ensureLoaded();
+
+        await controller.activeStore.save({
+          'Kitchen': challenges['Kitchen']!.copyWith(
+            checklist: [
+              challenges['Kitchen']!.checklist.single.copyWith(
+                isCompleted: true,
+              ),
+            ],
+          ),
+        });
+        await _until(() => reported != null, reason: 'the failure');
+      },
+    );
   });
 }

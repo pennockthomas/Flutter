@@ -3,13 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'challenge_model.dart';
 import 'challenge_repository.dart';
 import 'progress_merge.dart';
+import 'progress_store.dart';
 
 /// Single in-memory source of truth for challenge data, shared by every
 /// screen. Without this, each screen kept its own copy loaded independently,
 /// so a change made in one place (e.g. checking off an item in the Progress
 /// Register) wasn't reflected in another screen already on the navigation
 /// stack until it happened to reload on its own.
-class ChallengeStore extends ChangeNotifier {
+class ChallengeStore extends ChangeNotifier implements ProgressStore {
   ChallengeStore._();
 
   static final ChallengeStore instance = ChallengeStore._();
@@ -36,9 +37,14 @@ class ChallengeStore extends ChangeNotifier {
     return result;
   }
 
+  @override
+  bool get isPersonal => true;
+
+  @override
   Map<String, Challenge> get challenges => _challenges;
 
   /// Labels of the tiers (tree bubbles) that have been unlocked.
+  @override
   Set<String> get unlockedTiers => {
     for (final tier in _tiers.values)
       if (tier.done) tier.id,
@@ -62,6 +68,7 @@ class ChallengeStore extends ChangeNotifier {
 
   /// Returns the current challenges, loading them from disk only the first
   /// time this is called in the app's lifetime.
+  @override
   Future<Map<String, Challenge>> ensureLoaded() async {
     if (_isLoaded) return _challenges;
     final load = _initialLoad ??= reload();
@@ -89,6 +96,7 @@ class ChallengeStore extends ChangeNotifier {
   /// every screen that ticks or unticks a swap gets sync-ready timestamps
   /// without knowing about them. Pass `stamp: false` to store the data
   /// exactly as given.
+  @override
   Future<void> save(Map<String, Challenge> challenges, {bool stamp = true}) {
     final incoming = Map<String, Challenge>.from(challenges);
     return _serialized(() async {
@@ -132,6 +140,7 @@ class ChallengeStore extends ChangeNotifier {
   }
 
   /// Unlocks or locks a tier, stamped now so it can be synced.
+  @override
   Future<void> setTierUnlocked(String label, bool unlocked) {
     return _serialized(() async {
       if (!_isLoaded) await _reloadNow();
@@ -151,6 +160,7 @@ class ChallengeStore extends ChangeNotifier {
 
   /// Locks every unlocked tier again (the Reset button), stamped now so the
   /// reset also reaches the account's other devices.
+  @override
   Future<void> lockAllTiers() {
     return _serialized(() async {
       if (!_isLoaded) await _reloadNow();

@@ -44,6 +44,40 @@ Map<String, int> dailyCounts(
   return days;
 }
 
+/// Each member's share of a house's shared tree, from its swaps: the swaps
+/// they were the last to tick (`done` and `by` them), in total and per day.
+/// [names] maps a member's id to their name; [totalSwaps] is how many swaps
+/// the tree has. Members are in [memberUids] order; anyone who isn't a
+/// member any more is left out.
+List<HouseMember> deriveMembers({
+  required List<String> memberUids,
+  required Map<String, String> names,
+  required List<HouseSwap> swaps,
+  required int totalSwaps,
+}) {
+  final done = <String, int>{};
+  final days = <String, Map<String, int>>{};
+  for (final swap in swaps) {
+    if (!swap.done || swap.at <= 0) continue;
+    done[swap.by] = (done[swap.by] ?? 0) + 1;
+    final key = dayKey(DateTime.fromMillisecondsSinceEpoch(swap.at));
+    final perDay = days.putIfAbsent(swap.by, () => {});
+    perDay[key] = (perDay[key] ?? 0) + 1;
+  }
+  return [
+    for (final uid in memberUids)
+      HouseMember(
+        uid: uid,
+        name: (names[uid]?.isNotEmpty ?? false)
+            ? names[uid]!
+            : 'EcoSteps friend',
+        completed: done[uid] ?? 0,
+        total: totalSwaps,
+        days: days[uid] ?? const {},
+      ),
+  ];
+}
+
 /// Swaps done that have no day on record (before tracking, or older than the
 /// kept history): the level the graph starts from.
 int baselineOf(HouseMember member) {

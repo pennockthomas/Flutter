@@ -34,6 +34,11 @@ class ChallengeRepository {
   static const String importBackupFileName =
       'challenge_editor.pre_import_backup.json';
 
+  /// The swap list that ships with the app, with no progress: the structure
+  /// of a house's shared tree, so every member sees the same swaps.
+  Future<Map<String, Challenge>> loadBundledCatalog() async =>
+      _withSeedItemIds(_decodeSeed(await _loadSeedText()).challenges);
+
   Future<Map<String, Challenge>> loadChallenges() async {
     final seed = _decodeSeed(await _loadSeedText());
     final seedChallenges = _withSeedItemIds(seed.challenges);

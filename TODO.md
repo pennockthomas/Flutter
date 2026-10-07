@@ -135,9 +135,10 @@ Started 2026-09-27 with Thomas's go-ahead. Backend: Firebase (Auth + Firestore, 
 
 ## Houses (built 2026-10-08)
 
-- [ ] The house rules are deployed (2026-10-08); try houses with two real accounts: create, invite a friend, accept, rename, see each other's numbers and graph, remove, leave.
+- [ ] The updated house rules are deployed (2026-10-08); try houses with two real accounts: create, invite a friend, accept, rename, see each other's numbers and graph, remove, leave.
 - [ ] Decide what a house should do when the person who made it leaves (today it simply carries on, everyone is equal).
 - [ ] Limit how many invitations one person can receive or send; today a member can invite any of their friends into any of their houses.
+- [ ] Make QuickSwipe and the Progress tab follow the Personal / house switch too (today only the Tree tab does).
 - [ ] A personal stats page for the Personal view (swaps over time, who you are compared with), if wanted.
 
 ## Maintenance and explicitly deferred work

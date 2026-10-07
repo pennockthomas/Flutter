@@ -729,6 +729,8 @@ Files: `firestore.rules`, `lib/friends_*.dart`, `lib/settings.dart`, `test/frien
 
 ## 2026-10-08 — Houses: groups of friends with shared stats
 
+*(Partly superseded by the next-but-one entry, "A house has its own shared tree": the per-member totals/days documents described here are gone.)*
+
 Thomas's idea: a dropdown at the top of the tree screen that says "Personal" and lets you switch to a house you share with other people. A house starts out named "House", you invite your friends, and it has its own page with house stats: who did the most swaps, and a graph of swaps over time. His decisions: the dropdown lives on the tree screen; **everyone in a house is equal** (anyone can rename it, invite their own friends, remove people or leave); house mates see **counts per day** (never which swaps); graph with the **`fl_chart`** package (added to `pubspec.yaml`).
 
 **Rules tested on the emulator (40 tests pass) and deployed (2026-10-08)** with `firebase deploy --only firestore:rules --project ecosteps-d60b6`. Houses need them: without them creating or joining a house fails with permission denied. Not yet tried end to end with real accounts.
@@ -744,6 +746,21 @@ Thomas's idea: a dropdown at the top of the tree screen that says "Personal" and
 Tests: 74 new (`house_stats_test` 18, `houses_service_test` 15, `house_stats_sync_test` 8, `houses_controller_test` 10, `house_ui_test` 21, plus 20 more rules tests in `tool/rules_test/rules.test.js`, 40 in total). 222 Dart tests in total, all passing.
 
 Files: `firestore.rules`, `lib/house_*.dart`, `lib/houses_*.dart`, `lib/scope_dropdown.dart`, `lib/start_page.dart`, `lib/main.dart`, `pubspec.yaml`, `test/house*_test.dart`, `test/fake_houses_backend.dart`, `tool/rules_test/rules.test.js`
+
+## 2026-10-08 — A house has its own shared tree
+
+Thomas, after trying the first houses: "I want the house to have its own tree, so you can check off the swaps you did in the house together." That replaces the earlier design, where each member's *personal* totals were published into the house. **Now the house has one shared tree: a swap or branch ticked by any member is ticked for the whole house**, and each tick records who made it and when. The ranking ("who did the most swaps", all time / this week) and the graph are worked out from those ticks (the swaps a person was last to tick), not from personal progress.
+
+- **Tree switching:** `ProgressStore` (`lib/progress_store.dart`) is the small interface the tree needs (challenges, save, open branches, `isPersonal`). `ChallengeStore` (yours) and the new `HouseStore` (`lib/house_store.dart`) implement it. `HousesController.activeStore` returns yours in Personal and the open house's shared tree otherwise; `start_page.dart` now uses `activeStore`, listens to the controller, and rebuilds the tree when the dropdown changes. **Only the Tree tab switches**: QuickSwipe, Progress and the avatar ring stay personal (Thomas asked for a house tree; extending the scope switch to the other tabs is a possible next step).
+- **House tree data:** same swap list for everyone (`ChallengeRepository.loadBundledCatalog()`, the bundled list, not any device's Playground edits). State lives at `houses/{id}/swaps/{swapId}` = `{done, at, by}` and `houses/{id}/tiers/{label}` = `{open, at, by}`; unticking writes `done: false` (never a delete). `HouseStore` shows a change at once and writes it in the background; if the cloud refuses, the change is taken back and the tree shows "Couldn't save that for the house". Everyone is equal: anyone can tick, untick and open branches. **A house tree can't be reset** (the Reset button only shows in Personal) and personal milestone notifications aren't sent from a house.
+- **House page:** opened by a small bar-chart button next to your avatar on the house's tree (`HousePage`, back button). Members' names come from `houses/{id}/members/{uid}` = `{name}` (written by `HouseNameSync`, which replaced `HouseStatsSync`); counts per person per day come from `deriveMembers`.
+- **Rules** (`firestore.rules`, 49 emulator tests pass, including a 118-swap batch): members read; any member writes swaps/tiers but `by` must be their own uid and the shape is fixed; no deletes; outsiders and removed members can't write; the `members/{uid}` document is now name only. **The rules were deployed on 2026-10-08** (`firebase deploy --only firestore:rules --project ecosteps-d60b6`) after the 49 emulator tests passed; ticking in a house needs them.
+- Removed: `house_stats_sync.dart` (+ test); `HouseMember.fromData/toData`. `dailyCounts` is still used for nothing but personal stats later.
+- Not tested on a device: the dropdown switching the real tree; two people ticking at the same time (the last write to a swap wins). Offline, Firestore queues writes, so a tick made offline appears for the others once you reconnect.
+
+Tests: 24 new or rewritten (`house_store_test` 15, `house_name_sync_test` 6, `house_stats_test` deriveMembers 4, controller tests 7 for the active tree), rules tests 49 in total; 246 Dart tests, all passing.
+
+Files: `lib/progress_store.dart`, `lib/house_store.dart`, `lib/house_name_sync.dart`, `lib/houses_controller.dart`, `lib/house_page.dart`, `lib/start_page.dart`, `lib/house_models.dart`, `lib/house_stats.dart`, `lib/houses_*.dart`, `lib/challenge_store.dart`, `lib/challenge_repository.dart`, `firestore.rules`, `tool/rules_test/rules.test.js`, `test/house_*_test.dart`, `test/houses_*_test.dart`, `test/fake_houses_backend.dart`
 
 ---
 

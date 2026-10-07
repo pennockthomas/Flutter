@@ -381,16 +381,14 @@ test('invites: who can see and remove one', async () => {
   await assertSucceeds(deleteDoc(doc(as('bob'), 'houseInvites/h1_bob')));
 });
 
-// ------------------------------------------------------ house member stats
+// ------------------------------------------------------ house member names
 
-const stats = (extra = {}) => ({
-  name: 'Alice', completed: 5, total: 118, days: { '2026-10-05': 2 }, updatedAt: new Date(), ...extra,
-});
+const nameDoc = (name = 'Alice', extra = {}) => ({ name, updatedAt: new Date(), ...extra });
 
-test('house stats: members read each other, outsiders cannot', async () => {
+test('house names: members read each other, outsiders cannot', async () => {
   await seed(async (db) => {
     await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
-    await setDoc(doc(db, 'houses/h1/members/alice'), stats());
+    await setDoc(doc(db, 'houses/h1/members/alice'), nameDoc());
   });
   await assertSucceeds(getDoc(doc(as('bob'), 'houses/h1/members/alice')));
   await assertSucceeds(getDocs(collection(as('bob'), 'houses/h1/members')));
@@ -398,42 +396,131 @@ test('house stats: members read each other, outsiders cannot', async () => {
   await assertFails(getDoc(doc(anonymous(), 'houses/h1/members/alice')));
 });
 
-test('house stats: you write only your own, with the right shape', async () => {
+test('house names: you write only your own, with the right shape', async () => {
   await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob'])));
   const alice = as('alice');
-  await assertSucceeds(setDoc(doc(alice, 'houses/h1/members/alice'), stats()));
-  await assertFails(setDoc(doc(alice, 'houses/h1/members/bob'), stats({ name: 'Bob' })));
-  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ extra: 1 })));
-  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ completed: 'many' })));
-  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ days: 'x' })));
-  const tooMany = Object.fromEntries(Array.from({ length: 402 }, (_, i) => [`d${i}`, 1]));
-  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), stats({ days: tooMany })));
+  await assertSucceeds(setDoc(doc(alice, 'houses/h1/members/alice'), nameDoc()));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/bob'), nameDoc('Bob')));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), nameDoc('Alice', { completed: 99 })));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), nameDoc('')));
+  await assertFails(setDoc(doc(alice, 'houses/h1/members/alice'), nameDoc('x'.repeat(61))));
 });
 
-test('house stats: someone who is not in the house cannot write', async () => {
+test('house names: someone who is not in the house cannot write', async () => {
   await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
-  await assertFails(setDoc(doc(as('dave'), 'houses/h1/members/dave'), stats({ name: 'Dave' })));
+  await assertFails(setDoc(doc(as('dave'), 'houses/h1/members/dave'), nameDoc('Dave')));
 });
 
-test('house stats: a member can delete someone\'s numbers before removing them', async () => {
+test('house names: a member can delete someone\'s name before removing them', async () => {
   await seed(async (db) => {
     await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
-    await setDoc(doc(db, 'houses/h1/members/bob'), stats({ name: 'Bob' }));
+    await setDoc(doc(db, 'houses/h1/members/bob'), nameDoc('Bob'));
   });
   await assertFails(deleteDoc(doc(as('dave'), 'houses/h1/members/bob')));
   await assertSucceeds(deleteDoc(doc(as('alice'), 'houses/h1/members/bob')));
 });
 
-test('leaving a house: your numbers go first, then you', async () => {
+test('leaving a house: your name goes first, then you', async () => {
   await seed(async (db) => {
     await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
-    await setDoc(doc(db, 'houses/h1/members/bob'), stats({ name: 'Bob' }));
+    await setDoc(doc(db, 'houses/h1/members/bob'), nameDoc('Bob'));
   });
   const bob = as('bob');
   await assertSucceeds(deleteDoc(doc(bob, 'houses/h1/members/bob')));
   await assertSucceeds(updateDoc(doc(bob, 'houses/h1'), { memberUids: arrayRemove('bob') }));
   await assertFails(getDoc(doc(bob, 'houses/h1')));
-  await assertFails(setDoc(doc(bob, 'houses/h1/members/bob'), stats({ name: 'Bob' })));
+  await assertFails(setDoc(doc(bob, 'houses/h1/members/bob'), nameDoc('Bob')));
+});
+
+// ------------------------------------------------------- the house's tree
+
+const swap = (by, done = true, extra = {}) => ({ done, at: 1760000000000, by, ...extra });
+const branch = (by, open = true, extra = {}) => ({ open, at: 1760000000000, by, ...extra });
+
+test('house tree: members read it, outsiders and signed-out visitors cannot', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
+    await setDoc(doc(db, 'houses/h1/swaps/kitchen.metal-knives'), swap('alice'));
+    await setDoc(doc(db, 'houses/h1/tiers/Kitchen'), branch('alice'));
+  });
+  await assertSucceeds(getDoc(doc(as('bob'), 'houses/h1/swaps/kitchen.metal-knives')));
+  await assertSucceeds(getDocs(collection(as('bob'), 'houses/h1/swaps')));
+  await assertSucceeds(getDocs(collection(as('bob'), 'houses/h1/tiers')));
+  await assertFails(getDoc(doc(as('dave'), 'houses/h1/swaps/kitchen.metal-knives')));
+  await assertFails(getDocs(collection(as('dave'), 'houses/h1/swaps')));
+  await assertFails(getDoc(doc(anonymous(), 'houses/h1/tiers/Kitchen')));
+});
+
+test('house tree: any member can tick a swap, recorded as themselves', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob'])));
+  const bob = as('bob');
+  await assertSucceeds(setDoc(doc(bob, 'houses/h1/swaps/kitchen.metal-knives'), swap('bob')));
+  await assertSucceeds(setDoc(doc(bob, 'houses/h1/swaps/kitchen.metal-knives'), swap('bob', false)));
+  await assertSucceeds(setDoc(doc(as('alice'), 'houses/h1/swaps/kitchen.metal-knives'), swap('alice')));
+});
+
+test('house tree: nobody can tick on someone else\'s behalf', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob'])));
+  await assertFails(setDoc(doc(as('bob'), 'houses/h1/swaps/kitchen.metal-knives'), swap('alice')));
+  await assertFails(setDoc(doc(as('bob'), 'houses/h1/tiers/Kitchen'), branch('alice')));
+});
+
+test('house tree: outsiders cannot change it', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  await assertFails(setDoc(doc(as('dave'), 'houses/h1/swaps/kitchen.metal-knives'), swap('dave')));
+  await assertFails(setDoc(doc(as('dave'), 'houses/h1/tiers/Kitchen'), branch('dave')));
+  await assertFails(setDoc(doc(anonymous(), 'houses/h1/swaps/kitchen.metal-knives'), swap('dave')));
+});
+
+test('house tree: a removed member can no longer tick', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice', 'bob']));
+  });
+  await assertSucceeds(updateDoc(doc(as('alice'), 'houses/h1'), { memberUids: arrayRemove('bob') }));
+  await assertFails(setDoc(doc(as('bob'), 'houses/h1/swaps/kitchen.metal-knives'), swap('bob')));
+});
+
+test('house tree: ticks have a fixed shape', async () => {
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  const alice = as('alice');
+  await assertFails(setDoc(doc(alice, 'houses/h1/swaps/a'), swap('alice', true, { extra: 1 })));
+  await assertFails(setDoc(doc(alice, 'houses/h1/swaps/a'), swap('alice', 'yes')));
+  await assertFails(setDoc(doc(alice, 'houses/h1/swaps/a'), { done: true, by: 'alice' }));
+  await assertFails(setDoc(doc(alice, 'houses/h1/swaps/a'), { done: true, at: 'now', by: 'alice' }));
+  await assertFails(setDoc(doc(alice, `houses/h1/swaps/${'x'.repeat(101)}`), swap('alice')));
+  await assertFails(setDoc(doc(alice, 'houses/h1/tiers/Kitchen'), branch('alice', true, { extra: 1 })));
+  await assertFails(setDoc(doc(alice, 'houses/h1/tiers/Kitchen'), branch('alice', 'open')));
+});
+
+test('house tree: ticks are never deleted, an untick is a record', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice']));
+    await setDoc(doc(db, 'houses/h1/swaps/a'), swap('alice'));
+    await setDoc(doc(db, 'houses/h1/tiers/Kitchen'), branch('alice'));
+  });
+  await assertFails(deleteDoc(doc(as('alice'), 'houses/h1/swaps/a')));
+  await assertFails(deleteDoc(doc(as('alice'), 'houses/h1/tiers/Kitchen')));
+});
+
+test('house tree: a whole tree\'s worth of swaps can be written in one batch', async () => {
+  const { writeBatch } = require('firebase/firestore');
+  await seed((db) => setDoc(doc(db, 'houses/h1'), newHouse(['alice'])));
+  const db = as('alice');
+  const batch = writeBatch(db);
+  for (let i = 0; i < 118; i += 1) {
+    batch.set(doc(db, `houses/h1/swaps/swap.${i}`), swap('alice'));
+  }
+  await assertSucceeds(batch.commit());
+});
+
+test('houses cannot see each other\'s trees', async () => {
+  await seed(async (db) => {
+    await setDoc(doc(db, 'houses/h1'), newHouse(['alice']));
+    await setDoc(doc(db, 'houses/h2'), newHouse(['bob']));
+    await setDoc(doc(db, 'houses/h2/swaps/a'), swap('bob'));
+  });
+  await assertFails(getDoc(doc(as('alice'), 'houses/h2/swaps/a')));
+  await assertFails(setDoc(doc(as('alice'), 'houses/h2/swaps/a'), swap('alice')));
 });
 
 // ------------------------------------------------------------ everything else

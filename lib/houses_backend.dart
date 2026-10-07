@@ -6,8 +6,14 @@ abstract class HousesBackend {
   /// The houses [uid] is in, live.
   Stream<List<House>> watchHouses(String uid);
 
-  /// Every member's shared numbers in a house, live.
-  Stream<List<HouseMember>> watchMemberStats(String houseId);
+  /// The names of the people in a house, by id, live.
+  Stream<Map<String, String>> watchMemberNames(String houseId);
+
+  /// The house's shared swaps, live (only swaps that were ever ticked).
+  Stream<List<HouseSwap>> watchSwaps(String houseId);
+
+  /// The house's unlocked branches, live.
+  Stream<List<HouseTier>> watchTiers(String houseId);
 
   /// Invitations waiting for [uid].
   Stream<List<HouseInvite>> watchMyInvites(String uid);
@@ -31,5 +37,11 @@ abstract class HousesBackend {
   /// were the last member the house is deleted.
   Future<void> removeMember(House house, String memberUid);
 
-  Future<void> publishStats(String houseId, String uid, HouseMember stats);
+  /// Ticks or unticks swaps in the house's shared tree.
+  Future<void> writeSwaps(String houseId, List<HouseSwap> swaps);
+
+  Future<void> writeTier(String houseId, HouseTier tier);
+
+  /// Shares your name with the house (what the others see next to your swaps).
+  Future<void> publishName(String houseId, String uid, String name);
 }

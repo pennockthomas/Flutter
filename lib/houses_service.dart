@@ -51,8 +51,11 @@ class HousesService {
 
   Stream<List<House>> watchHouses(String uid) => backend.watchHouses(uid);
 
-  Stream<List<HouseMember>> watchMemberStats(String houseId) =>
-      backend.watchMemberStats(houseId);
+  Stream<Map<String, String>> watchMemberNames(String houseId) =>
+      backend.watchMemberNames(houseId);
+
+  Stream<List<HouseSwap>> watchSwaps(String houseId) =>
+      backend.watchSwaps(houseId);
 
   Stream<List<HouseInvite>> watchMyInvites(String uid) =>
       backend.watchMyInvites(uid);
@@ -136,6 +139,6 @@ class HousesService {
   Future<void> removeMember(House house, String memberUid) =>
       backend.removeMember(house, memberUid);
 
-  Future<void> publishStats(String houseId, String uid, HouseMember stats) =>
-      backend.publishStats(houseId, uid, stats);
+  Future<void> publishName(String houseId, String uid, String name) =>
+      backend.publishName(houseId, uid, name);
 }

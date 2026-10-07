@@ -171,21 +171,43 @@ service cloud.firestore {
         && request.auth.uid in resource.data.memberUids
         && resource.data.memberUids.size() == 1;
 
-      // Each member's own numbers in this house: totals and swaps per day.
-      // Counts only, never swap names. Everyone in the house can read them.
+      // Each member's name in this house (what the others see next to their
+      // swaps). Written only by that member.
       match /members/{memberUid} {
         allow read: if isHouseMember(houseId);
         allow create, update: if isOwner(memberUid)
           && isHouseMember(houseId)
-          && request.resource.data.keys().hasOnly(['name', 'completed', 'total', 'days', 'updatedAt'])
-          && shortText(request.resource.data.name)
-          && request.resource.data.completed is int
-          && request.resource.data.total is int
-          && request.resource.data.days is map
-          && request.resource.data.days.size() <= 401;
-        // Removing someone starts with deleting their numbers (while both
-        // are still members), so any member may.
+          && request.resource.data.keys().hasOnly(['name', 'updatedAt'])
+          && shortText(request.resource.data.name);
+        // Removing someone starts with deleting their name (while both are
+        // still members), so any member may.
         allow delete: if isOwner(memberUid) || isHouseMember(houseId);
+      }
+
+      // The house's shared tree: which swaps are done, and which branches
+      // are open. Any member can change them, and each change records who
+      // made it (always themselves) and when. Unticking writes done=false
+      // (never a delete), so there is always a record.
+      match /swaps/{swapId} {
+        allow read: if isHouseMember(houseId);
+        allow create, update: if isHouseMember(houseId)
+          && swapId.size() <= 100
+          && request.resource.data.keys().hasOnly(['done', 'at', 'by'])
+          && request.resource.data.done is bool
+          && request.resource.data.at is int
+          && request.resource.data.by == request.auth.uid;
+        allow delete: if false;
+      }
+
+      match /tiers/{tierLabel} {
+        allow read: if isHouseMember(houseId);
+        allow create, update: if isHouseMember(houseId)
+          && tierLabel.size() <= 100
+          && request.resource.data.keys().hasOnly(['open', 'at', 'by'])
+          && request.resource.data.open is bool
+          && request.resource.data.at is int
+          && request.resource.data.by == request.auth.uid;
+        allow delete: if false;
       }
     }
 

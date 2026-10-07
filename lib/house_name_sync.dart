@@ -1,33 +1,26 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
 import 'app_user.dart';
 import 'auth_service.dart';
-import 'challenge_store.dart';
 import 'house_models.dart';
-import 'house_stats.dart';
 import 'houses_backend.dart';
 import 'houses_firestore.dart';
 
-/// Keeps your numbers up to date in every house you're in: your totals and
-/// how many swaps you ticked each day (counts only, never which swaps).
-/// Runs while signed in; republishes after a change, a new house, or a new
-/// name, and skips writes where nothing changed.
-class HouseStatsSync {
-  HouseStatsSync({
+/// Shares your name with each house you're in, so the others see it next to
+/// your swaps. Runs while signed in; writes again after a new house or a new
+/// name, and skips houses that already have the current name.
+class HouseNameSync {
+  HouseNameSync({
     HousesBackend? backend,
-    ChallengeStore? store,
-    this.debounce = const Duration(seconds: 2),
+    this.debounce = const Duration(seconds: 1),
     this.retryDelay = const Duration(seconds: 30),
-  }) : _backend = backend ?? FirestoreHousesBackend(),
-       _store = store ?? ChallengeStore.instance;
+  }) : _backend = backend ?? FirestoreHousesBackend();
 
-  static final HouseStatsSync instance = HouseStatsSync();
+  static final HouseNameSync instance = HouseNameSync();
 
   final HousesBackend _backend;
-  final ChallengeStore _store;
   final Duration debounce;
   final Duration retryDelay;
 
@@ -44,7 +37,6 @@ class HouseStatsSync {
   void start({Stream<String?>? uids}) {
     if (_started) return;
     _started = true;
-    _store.addListener(_schedule);
     AppUser.listenable.addListener(_schedule);
     _uidSubscription =
         (uids ?? AuthService.instance.authStateChanges.map((user) => user?.uid))
@@ -52,9 +44,8 @@ class HouseStatsSync {
   }
 
   @visibleForTesting
-  Future<void> dispose() async {
+  Future<void> stopForTest() async {
     _timer?.cancel();
-    _store.removeListener(_schedule);
     AppUser.listenable.removeListener(_schedule);
     await _housesSubscription?.cancel();
     await _uidSubscription?.cancel();
@@ -82,32 +73,18 @@ class HouseStatsSync {
     _timer = Timer(debounce, publishNow);
   }
 
-  /// The numbers to share, from the local data.
-  Future<HouseMember> currentStats(String uid) async {
-    final challenges = await _store.ensureLoaded();
-    return HouseMember(
-      uid: uid,
-      name: AppUser.hasName ? AppUser.name : 'EcoSteps friend',
-      completed: _store.completedItems,
-      total: _store.totalItems,
-      days: dailyCounts(challenges),
-    );
-  }
-
   Future<void> publishNow() async {
     final uid = _uid;
     if (uid == null || _houses.isEmpty) return;
+    final name = AppUser.hasName ? AppUser.name : 'EcoSteps friend';
     try {
-      final stats = await currentStats(uid);
-      final encoded = jsonEncode(stats.toData());
       for (final house in _houses) {
-        if (_lastPublished[house.id] == encoded) continue;
-        await _backend.publishStats(house.id, uid, stats);
-        _lastPublished[house.id] = encoded;
+        if (_lastPublished[house.id] == name) continue;
+        await _backend.publishName(house.id, uid, name);
+        _lastPublished[house.id] = name;
       }
     } catch (e) {
-      debugPrint('Publishing house stats failed: $e');
-      // Try again later, on the next change.
+      debugPrint('Publishing the house name failed: $e');
       _timer?.cancel();
       _timer = Timer(retryDelay, publishNow);
     }

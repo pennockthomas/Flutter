@@ -4,19 +4,30 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_service.dart';
+import 'challenge_model.dart';
+import 'challenge_repository.dart';
+import 'challenge_store.dart';
 import 'friends_firestore.dart';
 import 'friends_service.dart';
 import 'house_models.dart';
+import 'house_store.dart';
 import 'houses_firestore.dart';
 import 'houses_service.dart';
+import 'progress_store.dart';
 
 /// Which houses you are in, which invitations are waiting for you, and which
 /// view the tree screen shows: "Personal" (the tree) or one of your houses.
 /// The dropdown on the tree screen and the house page both read from this.
 class HousesController extends ChangeNotifier {
-  HousesController({HousesService? service, FriendsService? friends})
-    : service = service ?? HousesService(FirestoreHousesBackend()),
-      friends = friends ?? FriendsService(FirestoreFriendsBackend());
+  HousesController({
+    HousesService? service,
+    FriendsService? friends,
+    ProgressStore? personal,
+    Future<Map<String, Challenge>> Function()? loadCatalog,
+  }) : service = service ?? HousesService(FirestoreHousesBackend()),
+       friends = friends ?? FriendsService(FirestoreFriendsBackend()),
+       _personal = personal ?? ChallengeStore.instance,
+       _loadCatalog = loadCatalog ?? ChallengeRepository().loadBundledCatalog;
 
   static final HousesController instance = HousesController();
 
@@ -25,6 +36,21 @@ class HousesController extends ChangeNotifier {
 
   final HousesService service;
   final FriendsService friends;
+  final ProgressStore _personal;
+  final Future<Map<String, Challenge>> Function() _loadCatalog;
+
+  HouseStore? _houseStore;
+
+  /// Told when a change to the open house's tree was refused by the cloud
+  /// (after it had already been shown).
+  void Function(Object error)? onHouseWriteFailed;
+
+  /// The swaps and branches the tree screen works with: yours, or the open
+  /// house's shared tree.
+  ProgressStore get activeStore => _houseStore ?? _personal;
+
+  /// The shared tree of the open house, or null in Personal.
+  HouseStore? get houseStore => _houseStore;
 
   StreamSubscription<String?>? _uidSubscription;
   StreamSubscription<List<House>>? _housesSubscription;
@@ -77,7 +103,36 @@ class HousesController extends ChangeNotifier {
     await _uidSubscription?.cancel();
     await _housesSubscription?.cancel();
     await _invitesSubscription?.cancel();
+    await _houseStore?.close();
+    _houseStore = null;
     _started = false;
+  }
+
+  /// Makes [activeStore] match the open house: a shared tree for it, or
+  /// none (Personal). Call before notifying listeners.
+  void _refreshStore() {
+    final house = selectedHouse;
+    if (house == null) {
+      final old = _houseStore;
+      _houseStore = null;
+      old?.close();
+      return;
+    }
+    if (_houseStore?.houseId == house.id && _houseStore?.uid == _uid) return;
+    final old = _houseStore;
+    _houseStore = HouseStore(
+      houseId: house.id,
+      uid: _uid!,
+      backend: service.backend,
+      loadCatalog: _loadCatalog,
+    )..onWriteFailed = (error) => onHouseWriteFailed?.call(error);
+    _houseStore!.start();
+    old?.close();
+  }
+
+  void _notify() {
+    _refreshStore();
+    notifyListeners();
   }
 
   Future<void> _onUid(String? uid) async {
@@ -89,7 +144,7 @@ class HousesController extends ChangeNotifier {
     _houses = const [];
     _invites = const [];
     _housesLoaded = false;
-    notifyListeners();
+    _notify();
     if (uid == null) return;
 
     _housesSubscription = service.watchHouses(uid).listen((houses) {
@@ -100,7 +155,7 @@ class HousesController extends ChangeNotifier {
         _selectedId = null;
         _saveSelection();
       }
-      notifyListeners();
+      _notify();
     }, onError: (Object e) => debugPrint('Houses watch failed: $e'));
     _invitesSubscription = service.watchMyInvites(uid).listen((invites) {
       _invites = invites;
@@ -126,7 +181,7 @@ class HousesController extends ChangeNotifier {
   Future<void> select(String? houseId) async {
     if (_selectedId == houseId) return;
     _selectedId = houseId;
-    notifyListeners();
+    _notify();
     await _saveSelection();
   }
 

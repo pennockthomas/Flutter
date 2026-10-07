@@ -209,6 +209,72 @@ void main() {
     });
   });
 
+  group('deriveMembers', () {
+    HouseSwap swap(String id, String by, int at, {bool done = true}) =>
+        HouseSwap(id: id, done: done, at: at, by: by);
+
+    test('counts the swaps each person was last to tick, in house order', () {
+      final members = deriveMembers(
+        memberUids: ['ben', 'anna'],
+        names: {'anna': 'Anna Jansen', 'ben': 'Ben Smit'},
+        swaps: [
+          swap('a', 'anna', _ms(2026, 10, 5)),
+          swap('b', 'anna', _ms(2026, 10, 5)),
+          swap('c', 'ben', _ms(2026, 10, 6)),
+        ],
+        totalSwaps: 118,
+      );
+
+      expect(members.map((m) => m.name), ['Ben Smit', 'Anna Jansen']);
+      expect(members.map((m) => m.completed), [1, 2]);
+      expect(members.every((m) => m.total == 118), isTrue);
+      expect(members[1].days, {'2026-10-05': 2});
+    });
+
+    test('unticked swaps and unknown people are not counted', () {
+      final members = deriveMembers(
+        memberUids: ['anna'],
+        names: {'anna': 'Anna'},
+        swaps: [
+          swap('a', 'anna', _ms(2026, 10, 5), done: false),
+          swap('b', 'gone', _ms(2026, 10, 5)),
+          swap('c', 'anna', 0),
+        ],
+        totalSwaps: 10,
+      );
+
+      expect(members.single.completed, 0);
+      expect(members.single.days, isEmpty);
+    });
+
+    test('a member with no name yet is called EcoSteps friend', () {
+      final members = deriveMembers(
+        memberUids: ['new'],
+        names: {},
+        swaps: const [],
+        totalSwaps: 10,
+      );
+
+      expect(members.single.name, 'EcoSteps friend');
+      expect(members.single.completed, 0);
+    });
+
+    test('ticks by the same person on different days are kept apart', () {
+      final members = deriveMembers(
+        memberUids: ['anna'],
+        names: {'anna': 'Anna'},
+        swaps: [
+          swap('a', 'anna', _ms(2026, 10, 5)),
+          swap('b', 'anna', _ms(2026, 10, 6)),
+          swap('c', 'anna', _ms(2026, 10, 6)),
+        ],
+        totalSwaps: 10,
+      );
+
+      expect(members.single.days, {'2026-10-05': 1, '2026-10-06': 2});
+    });
+  });
+
   group('House and HouseMember', () {
     test('house names are tidied and limited', () {
       expect(House.cleanName('  Our   house '), 'Our house');
@@ -217,21 +283,20 @@ void main() {
       expect(House.cleanName('x' * House.maxNameLength), isNotNull);
     });
 
-    test('a member is read from stored data, skipping anything malformed', () {
-      final member = HouseMember.fromData('u1', {
-        'name': 'Sam',
-        'completed': 12,
-        'total': 118,
-        'days': {
-          '2026-10-05': 3,
-          'not-a-date': 4,
-          '2026-10-06': -2,
-          '2026-10-07': 'many',
-        },
+    test('a swap and a tier are read from stored data', () {
+      final swap = HouseSwap.fromData('k.knives', {
+        'done': true,
+        'at': 123,
+        'by': 'anna',
       });
+      final tier = HouseTier.fromData('Kitchen', {'open': true, 'at': 5});
 
-      expect(member.days, {'2026-10-05': 3});
-      expect(member.progress, closeTo(12 / 118, 1e-9));
+      expect(swap.done, isTrue);
+      expect(swap.at, 123);
+      expect(swap.by, 'anna');
+      expect(swap.toData(), {'done': true, 'at': 123, 'by': 'anna'});
+      expect(tier.open, isTrue);
+      expect(tier.by, '', reason: 'a missing field reads as empty');
     });
 
     test('a house is read from stored data', () {

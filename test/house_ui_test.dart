@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flut/app_user.dart';
+import 'package:flut/challenge_model.dart';
 import 'package:flut/friends_models.dart';
 import 'package:flut/friends_service.dart';
 import 'package:flut/house_models.dart';
@@ -26,18 +27,33 @@ final _now = DateTime(2026, 10, 7, 12);
 House _house(String id, List<String> members, {String name = 'House'}) =>
     House(id: id, name: name, memberUids: members, createdBy: members.first);
 
-HouseMember _stats(
-  String uid,
-  String name,
-  int completed, {
-  Map<String, int> days = const {},
-}) => HouseMember(
-  uid: uid,
-  name: name,
-  completed: completed,
-  total: 118,
-  days: days,
-);
+/// [count] swaps ticked by [by] on one day (ids are unique per [prefix]).
+Map<String, HouseSwap> _ticks(
+  String by,
+  int count,
+  DateTime day,
+  String prefix,
+) => {
+  for (var i = 0; i < count; i++)
+    '$prefix$i': HouseSwap(
+      id: '$prefix$i',
+      done: true,
+      at: DateTime(day.year, day.month, day.day, 12).millisecondsSinceEpoch,
+      by: by,
+    ),
+};
+
+/// A tree of 118 swaps, like the real one.
+Map<String, Challenge> _bigCatalog() => {
+  'Kitchen': Challenge(
+    label: 'Kitchen',
+    description: '',
+    unlocks: const [],
+    checklist: [
+      for (var i = 0; i < 118; i++) ChecklistItem(id: 's$i', label: 'Swap $i'),
+    ],
+  ),
+};
 
 void main() {
   late FakeHousesBackend houses;
@@ -62,6 +78,7 @@ void main() {
     controller = HousesController(
       service: HousesService(houses),
       friends: FriendsService(friendsBackend),
+      loadCatalog: () async => _bigCatalog(),
     );
   });
 
@@ -249,6 +266,8 @@ void main() {
       await controller.start(uids: uids.stream);
       houses.addHouse(house);
       await signIn(tester, uid);
+      await controller.select(house.id);
+      await tester.pumpAndSettle();
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -265,10 +284,16 @@ void main() {
     }
 
     void seedStats() {
-      houses.stats['h1'] = {
-        'me': _stats('me', 'Me Myself', 12, days: {'2026-10-07': 2}),
-        'anna': _stats('anna', 'Anna Jansen', 30, days: {'2026-09-01': 30}),
-        'ben': _stats('ben', 'Ben Smit', 5, days: {'2026-10-05': 5}),
+      houses.names['h1'] = {
+        'me': 'Me Myself',
+        'anna': 'Anna Jansen',
+        'ben': 'Ben Smit',
+      };
+      houses.swaps['h1'] = {
+        ..._ticks('me', 2, DateTime(2026, 10, 7), 'me-new'),
+        ..._ticks('me', 10, DateTime(2026, 9, 20), 'me-old'),
+        ..._ticks('anna', 30, DateTime(2026, 9, 1), 'anna'),
+        ..._ticks('ben', 5, DateTime(2026, 10, 5), 'ben'),
       };
     }
 
@@ -335,7 +360,8 @@ void main() {
     testWidgets('someone who has not shared numbers yet still appears', (
       tester,
     ) async {
-      houses.stats['h1'] = {'me': _stats('me', 'Me Myself', 3)};
+      houses.names['h1'] = {'me': 'Me Myself'};
+      houses.swaps['h1'] = _ticks('me', 3, DateTime(2026, 10, 6), 'm');
       await showHouse(tester, _house('h1', ['me', 'newcomer']));
 
       expect(find.text('EcoSteps friend'), findsWidgets);

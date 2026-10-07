@@ -11,9 +11,58 @@ import 'house_stats.dart';
 import 'houses_controller.dart';
 import 'houses_service.dart';
 
-/// One house: its name, who is in it, invitations, who did the most swaps,
-/// and a graph of swaps over time. Shown in place of the tree when a house is
-/// chosen in the dropdown. Everyone in a house has equal rights.
+/// A house's page, opened from the stats button on its tree: a back button
+/// over [HouseView].
+class HousePage extends StatelessWidget {
+  const HousePage({super.key, required this.house, required this.controller});
+
+  final House house;
+  final HousesController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Rebuilds with the house, so a rename shows straight away, and
+          // closes the page if you leave or are removed.
+          ListenableBuilder(
+            listenable: controller,
+            builder: (context, _) {
+              final current = controller.houses
+                  .where((h) => h.id == house.id)
+                  .firstOrNull;
+              if (current == null) return const SizedBox.shrink();
+              return HouseView(
+                key: ValueKey(house.id),
+                house: current,
+                controller: controller,
+              );
+            },
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 10, top: 10),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One house: its name, who is in it, invitations, who ticked the most swaps
+/// in the shared tree, and a graph of swaps over time. Everyone in a house
+/// has equal rights.
 class HouseView extends StatefulWidget {
   const HouseView({
     super.key,
@@ -35,8 +84,11 @@ class HouseView extends StatefulWidget {
 enum _Ranking { allTime, thisWeek }
 
 class _HouseViewState extends State<HouseView> {
-  late final Stream<List<HouseMember>> _stats = widget.controller.service
-      .watchMemberStats(widget.house.id)
+  late final Stream<Map<String, String>> _names = widget.controller.service
+      .watchMemberNames(widget.house.id)
+      .asBroadcastStream();
+  late final Stream<List<HouseSwap>> _swaps = widget.controller.service
+      .watchSwaps(widget.house.id)
       .asBroadcastStream();
   late final Stream<List<HouseInvite>> _houseInvites = widget.controller.service
       .watchHouseInvites(widget.house.id)
@@ -216,49 +268,48 @@ class _HouseViewState extends State<HouseView> {
         const AppBackgroundOverlay(fallbackDarkness: 0.32),
         SafeArea(
           child: FadingEdgeScrollView(
-            child: StreamBuilder<List<HouseMember>>(
-              stream: _stats,
-              builder: (context, statsSnapshot) {
-                final byUid = {
-                  for (final m in statsSnapshot.data ?? const <HouseMember>[])
-                    m.uid: m,
-                };
-                // In the house's own order, so colours stay with people.
-                final members = [
-                  for (final uid in _house.memberUids)
-                    byUid[uid] ??
-                        HouseMember(
-                          uid: uid,
-                          name: uid == _me && AppUser.hasName
-                              ? AppUser.name
-                              : 'EcoSteps friend',
-                          completed: 0,
-                          total: 0,
-                        ),
-                ];
-                return ListView(
-                  // Leaves room for the dropdown above.
-                  padding: const EdgeInsets.fromLTRB(20, 64, 20, 26),
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 14),
-                    _buildMembers(members),
-                    const SizedBox(height: 14),
-                    _buildLeaderboard(members),
-                    const SizedBox(height: 14),
-                    _buildGraph(members),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      key: const Key('leave-house'),
-                      onPressed: _leave,
-                      child: const Text(
-                        'Leave house',
-                        style: TextStyle(color: Colors.orangeAccent),
-                      ),
-                    ),
-                  ],
-                );
-              },
+            child: StreamBuilder<Map<String, String>>(
+              stream: _names,
+              builder: (context, namesSnapshot) =>
+                  StreamBuilder<List<HouseSwap>>(
+                    stream: _swaps,
+                    builder: (context, swapsSnapshot) {
+                      final names = {...?namesSnapshot.data};
+                      // Before your own name has been shared, use the local one.
+                      if (AppUser.hasName)
+                        names.putIfAbsent(_me, () => AppUser.name);
+                      // In the house's own order, so colours stay with people.
+                      final members = deriveMembers(
+                        memberUids: _house.memberUids,
+                        names: names,
+                        swaps: swapsSnapshot.data ?? const [],
+                        totalSwaps:
+                            widget.controller.houseStore?.totalItems ?? 0,
+                      );
+                      return ListView(
+                        // Leaves room for the back button above.
+                        padding: const EdgeInsets.fromLTRB(20, 64, 20, 26),
+                        children: [
+                          _buildHeader(),
+                          const SizedBox(height: 14),
+                          _buildMembers(members),
+                          const SizedBox(height: 14),
+                          _buildLeaderboard(members),
+                          const SizedBox(height: 14),
+                          _buildGraph(members),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            key: const Key('leave-house'),
+                            onPressed: _leave,
+                            child: const Text(
+                              'Leave house',
+                              style: TextStyle(color: Colors.orangeAccent),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
             ),
           ),
         ),

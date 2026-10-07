@@ -40,9 +40,61 @@ class House {
   }
 }
 
-/// One member's shared numbers within a house: totals and how many swaps
-/// they ticked on each day. Counts only, never which swaps. Stored at
-/// `houses/{id}/members/{uid}` and written by that member.
+/// One swap in a house's shared tree: whether it's done, when that last
+/// changed (milliseconds since the epoch) and who changed it. Stored at
+/// `houses/{id}/swaps/{swapId}`. Unticking is a change too (`done` false).
+class HouseSwap {
+  final String id;
+  final bool done;
+  final int at;
+  final String by;
+
+  const HouseSwap({
+    required this.id,
+    required this.done,
+    required this.at,
+    required this.by,
+  });
+
+  factory HouseSwap.fromData(String id, Map<String, dynamic> data) => HouseSwap(
+    id: id,
+    done: data['done'] == true,
+    at: (data['at'] as num?)?.toInt() ?? 0,
+    by: (data['by'] as String?) ?? '',
+  );
+
+  Map<String, dynamic> toData() => {'done': done, 'at': at, 'by': by};
+}
+
+/// One unlocked (or locked again) branch of a house's shared tree. Stored at
+/// `houses/{id}/tiers/{label}`.
+class HouseTier {
+  final String label;
+  final bool open;
+  final int at;
+  final String by;
+
+  const HouseTier({
+    required this.label,
+    required this.open,
+    required this.at,
+    required this.by,
+  });
+
+  factory HouseTier.fromData(String label, Map<String, dynamic> data) =>
+      HouseTier(
+        label: label,
+        open: data['open'] == true,
+        at: (data['at'] as num?)?.toInt() ?? 0,
+        by: (data['by'] as String?) ?? '',
+      );
+
+  Map<String, dynamic> toData() => {'open': open, 'at': at, 'by': by};
+}
+
+/// One person's share of what the house has done: the swaps they were the
+/// last to tick, in total and per day. Counts only; worked out from the
+/// house's swaps by `deriveMembers`, never stored.
 class HouseMember {
   final String uid;
   final String name;
@@ -71,36 +123,6 @@ class HouseMember {
         ? first(parts.first)
         : first(parts.first) + first(parts.last);
   }
-
-  factory HouseMember.fromData(String uid, Map<String, dynamic>? data) {
-    int count(Object? value) =>
-        (value is num && value >= 0) ? value.toInt() : 0;
-    final days = <String, int>{};
-    final raw = data?['days'];
-    if (raw is Map) {
-      raw.forEach((key, value) {
-        if (key is String && RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(key)) {
-          final n = count(value);
-          if (n > 0) days[key] = n;
-        }
-      });
-    }
-    final name = (data?['name'] as String?) ?? '';
-    return HouseMember(
-      uid: uid,
-      name: name.isEmpty ? 'EcoSteps friend' : name,
-      completed: count(data?['completed']),
-      total: count(data?['total']),
-      days: days,
-    );
-  }
-
-  Map<String, dynamic> toData() => {
-    'name': name,
-    'completed': completed,
-    'total': total,
-    'days': days,
-  };
 }
 
 /// An invitation to join a house, stored at `houseInvites/{houseId}_{to}`.

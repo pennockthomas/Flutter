@@ -13,9 +13,6 @@ import 'fake_houses_backend.dart';
 House _house(String id, List<String> members, {String name = 'House'}) =>
     House(id: id, name: name, memberUids: members, createdBy: members.first);
 
-HouseMember _stats(String uid) =>
-    HouseMember(uid: uid, name: uid, completed: 1, total: 10);
-
 Future<void> _throwsProblem(Future<void> Function() action, HouseProblem p) {
   return expectLater(
     action(),
@@ -236,19 +233,16 @@ void main() {
       expect(backend.houses[house.id]!.memberUids, ['me']);
     });
 
-    test(
-      'leaving takes you and your numbers out, and keeps the house',
-      () async {
-        final house = _house('h1', ['me', 'anna']);
-        backend.addHouse(house);
-        backend.stats['h1'] = {'me': _stats('me'), 'anna': _stats('anna')};
+    test('leaving takes you and your name out, and keeps the house', () async {
+      final house = _house('h1', ['me', 'anna']);
+      backend.addHouse(house);
+      backend.names['h1'] = {'me': 'me', 'anna': 'anna'};
 
-        await service.leave(house, 'anna');
+      await service.leave(house, 'anna');
 
-        expect(backend.houses['h1']!.memberUids, ['me']);
-        expect(backend.stats['h1']!.keys, ['me']);
-      },
-    );
+      expect(backend.houses['h1']!.memberUids, ['me']);
+      expect(backend.names['h1']!.keys, ['me']);
+    });
 
     test('anyone can remove another member', () async {
       final house = _house('h1', ['me', 'anna', 'ben']);
